@@ -6,6 +6,7 @@ mod models;
 mod services;
 mod state;
 
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use axum::routing::{get, post};
@@ -39,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
         config: config.clone(),
         llm: Box::new(llm),
         messaging: Box::new(messaging),
+        paused: AtomicBool::new(false),
     });
 
     let app = Router::new()

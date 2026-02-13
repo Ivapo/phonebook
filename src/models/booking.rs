@@ -30,4 +30,12 @@ impl BookingStatus {
             BookingStatus::Cancelled => "cancelled",
         }
     }
+
+    pub fn from_str(s: &str) -> Self {
+        match s {
+            "confirmed" => BookingStatus::Confirmed,
+            "cancelled" => BookingStatus::Cancelled,
+            _ => BookingStatus::Pending,
+        }
+    }
 }

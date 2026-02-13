@@ -9,6 +9,7 @@ pub struct AppConfig {
     pub twilio_account_sid: String,
     pub twilio_auth_token: String,
     pub twilio_phone_number: String,
+    pub owner_phone: String,
 }
 
 impl AppConfig {
@@ -25,6 +26,7 @@ impl AppConfig {
             twilio_account_sid: env::var("TWILIO_ACCOUNT_SID").unwrap_or_default(),
             twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").unwrap_or_default(),
             twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").unwrap_or_default(),
+            owner_phone: env::var("OWNER_PHONE").unwrap_or_default(),
         }
     }
 }

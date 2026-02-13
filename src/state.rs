@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use rusqlite::Connection;
@@ -11,4 +12,5 @@ pub struct AppState {
     pub config: AppConfig,
     pub llm: Box<dyn LlmProvider>,
     pub messaging: Box<dyn MessagingProvider>,
+    pub paused: AtomicBool,
 }

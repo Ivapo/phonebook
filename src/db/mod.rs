@@ -1,4 +1,5 @@
 pub mod migrations;
+pub mod queries;
 
 use anyhow::Context;
 use rusqlite::Connection;

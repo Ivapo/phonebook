@@ -4,6 +4,6 @@ pub mod intent;
 pub mod user;
 
 pub use booking::{Booking, BookingStatus};
-pub use conversation::Conversation;
-pub use intent::Intent;
+pub use conversation::{Conversation, ConversationData, ConversationMessage, ConversationState, PendingBooking};
+pub use intent::{ExtractedIntent, Intent};
 pub use user::User;
