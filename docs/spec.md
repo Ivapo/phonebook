@@ -15,7 +15,7 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - **Database**: SQLite via rusqlite (bundled), WAL mode, foreign keys enabled
 - **AI**: `LlmProvider` trait with swappable backends
 - **Messaging**: `MessagingProvider` trait abstracting SMS/future channels
-- **Admin UI**: Single HTML page at `/admin`, token-auth, embedded via `include_str!`
+- **App UI**: Unified PWA at `/app`, token-auth, embedded via `include_str!`. Bottom tab bar (Inbox, Bookings, Settings), real-time SSE. `/admin` and `/inbox` redirect to `/app`.
 - **Config**: Environment variables with defaults (`AppConfig` struct)
 
 ---
@@ -55,10 +55,14 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] GET `/calendar/:booking_id` serves .ics download
 - [x] Calendar URL included in booking confirmation SMS
 
-### Admin UI & API
+### App UI & Admin API
 
-- [x] GET `/admin` — embedded single-page HTML app (dark/light mode)
-- [x] Bearer token auth on all `/api/admin/*` endpoints
+- [x] GET `/app` — unified mobile-first PWA with bottom tab bar (Inbox, Bookings, Settings)
+- [x] GET `/admin`, GET `/inbox` — permanent redirects to `/app`
+- [x] Header bar with agent status pill (Active/Paused), SSE connection dot, sign out
+- [x] Token stored as `app_token` in localStorage, auto-migrates from `admin_token`/`inbox_token`
+- [x] PWA: inline manifest, blob service worker, Add to Home Screen support
+- [x] Bearer token auth on all `/api/admin/*` and `/api/inbox/*` endpoints
 - [x] GET `/api/admin/status` — dashboard stats (paused, messages/hr, blocked count, upcoming bookings)
 - [x] GET `/api/admin/bookings` — list bookings (filterable by status)
 - [x] POST `/api/admin/bookings/:id/cancel` — cancel a booking
@@ -68,6 +72,20 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] POST `/api/admin/pause` — pause agent
 - [x] POST `/api/admin/resume` — resume agent
 - [x] GET/POST `/api/admin/settings` — business name, owner name, timezone, availability
+
+### Owner Inbox
+
+- [x] Inbox tab — threaded conversation list with unread badges
+- [x] Thread view — chat bubbles for customer messages, AI replies, and owner replies
+- [x] Reply bar — owner can type and send replies directly to customers
+- [x] GET `/api/inbox/threads` — list all conversation threads with unread counts
+- [x] GET `/api/inbox/thread/:phone` — get messages for a thread
+- [x] POST `/api/inbox/thread/:phone/read` — mark thread as read
+- [x] POST `/api/inbox/reply` — send owner reply (injects into conversation + sends via messaging provider)
+- [x] GET `/api/inbox/events` — SSE stream for real-time inbox updates (catchup + live)
+- [x] SSE stays connected across all tabs, updates inbox badge when on other tabs
+- [x] Desktop: sidebar thread list (320px) + thread view side-by-side
+- [x] Mobile: thread view overlays list, back button to return
 
 ### SMS Admin Commands (owner sends from configured phone)
 
@@ -113,7 +131,7 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 ### Testing
 
 - [x] 22 unit tests (models, services, scheduling)
-- [x] 26 integration tests (admin API, webhook, SMS commands, calendar, rate limiting)
+- [x] 27 integration tests (admin API, inbox API, webhook, SMS commands, calendar, rate limiting)
 
 ### Dev Chat UI
 
@@ -202,7 +220,8 @@ src/
   state.rs           — AppState (db, config, providers, paused flag)
   handlers/
     webhook.rs       — SMS webhook, admin commands, rate limiting
-    admin.rs         — Admin API endpoints
+    admin.rs         — App page handler + admin API endpoints
+    inbox.rs         — Inbox API endpoints + SSE stream
     calendar.rs      — .ics download handler
     dev.rs           — Dev chat UI + message API
     health.rs        — Health check
@@ -217,6 +236,7 @@ src/
     calendar.rs      — .ics generation
     conversation.rs  — Multi-turn conversation engine
     scheduling.rs    — Availability & conflict checking
+    inbox.rs         — Inbox event recording + broadcast
   models/
     mod.rs           — Booking, BookingStatus, Intent structs
     availability.rs  — AvailabilitySlot parsing & checking
@@ -224,7 +244,7 @@ src/
     mod.rs           — init_db, migrations
     queries.rs       — All SQL queries
   web/
-    admin.html       — Embedded admin UI
+    app.html         — Embedded unified PWA (inbox + bookings + settings)
     dev_chat.html    — Embedded dev chat simulator
 migrations/
   001_initial.sql    — Schema

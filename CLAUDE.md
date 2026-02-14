@@ -16,7 +16,7 @@ Rust-based SMS booking agent for freelancers. Handles appointment scheduling via
 - **AI**: LlmProvider trait with Ollama (default), Groq, OpenAI-compatible backends
 - **Messaging**: MessagingProvider trait — Twilio SMS for MVP, WhatsApp and others later
 - **Twilio**: BYOA (Bring Your Own Account) — user creates their own Twilio account, buys a number (~$1/mo), registers A2P 10DLC, and enters credentials in admin UI. We do NOT manage Twilio on behalf of users (no ISV subaccounts for MVP).
-- **Admin UI**: Single HTML page at `/admin`, token-auth, embedded via `include_str!`
+- **App UI**: Unified PWA at `/app` — mobile-first, bottom tab bar (Inbox, Bookings, Settings), real-time SSE, token-auth, embedded via `include_str!`. `/admin` and `/inbox` redirect to `/app`.
 - **Database**: SQLite via rusqlite (bundled), migrations in `migrations/`
 - **Calendar**: .ics file generation sent via SMS, no Google OAuth
 - **Pricing**: $39 one-time (self-hosted), $7/mo (cloud-hosted, we run the server). User pays Twilio directly in both tiers.
@@ -25,13 +25,13 @@ See `docs/spec.md` for the full MVP specification, including database schema, co
 
 ## Project Structure
 
-- `src/handlers/` — HTTP route handlers (webhook, admin, health)
+- `src/handlers/` — HTTP route handlers (webhook, admin, inbox, health)
 - `src/services/ai/` — LlmProvider trait + implementations (ollama, groq, openai)
 - `src/services/messaging/` — MessagingProvider trait + implementations (twilio_sms, future: whatsapp)
 - `src/services/calendar.rs` — .ics generation + booking logic
 - `src/models/` — Booking, Intent, Conversation, User structs
 - `src/db/` — SQLite layer
-- `src/web/admin.html` — admin UI (embedded in binary)
+- `src/web/app.html` — unified PWA (embedded in binary)
 - `migrations/` — SQL migration files
 
 ## Code Style
