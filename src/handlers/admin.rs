@@ -17,6 +17,7 @@ pub async fn admin_page() -> Html<&'static str> {
     Html(ADMIN_HTML)
 }
 
+#[allow(clippy::result_large_err)]
 fn check_auth(headers: &HeaderMap, expected_token: &str) -> Result<(), Response> {
     let auth = headers
         .get("authorization")

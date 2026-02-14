@@ -60,7 +60,7 @@ pub fn get_conversation(conn: &Connection, phone: &str) -> anyhow::Result<Option
             Ok(Some(Conversation {
                 phone,
                 messages,
-                state: ConversationState::from_str(&state_str),
+                state: ConversationState::parse(&state_str),
                 pending_booking,
                 last_activity,
                 expires_at,
@@ -292,7 +292,7 @@ fn parse_booking_row(row: &rusqlite::Row) -> anyhow::Result<Booking> {
         customer_name,
         date_time,
         duration_minutes,
-        status: BookingStatus::from_str(&status_str),
+        status: BookingStatus::parse(&status_str),
         notes,
         created_at,
         updated_at,

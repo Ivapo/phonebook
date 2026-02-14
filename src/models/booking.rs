@@ -31,7 +31,7 @@ impl BookingStatus {
         }
     }
 
-    pub fn from_str(s: &str) -> Self {
+    pub fn parse(s: &str) -> Self {
         match s {
             "confirmed" => BookingStatus::Confirmed,
             "cancelled" => BookingStatus::Cancelled,
