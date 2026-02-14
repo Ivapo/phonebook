@@ -345,6 +345,11 @@ pub async fn process_message(
         content: reply.clone(),
     });
 
+    // Forward AI reply to owner via dev notification queue
+    if let Ok(mut notifications) = state.dev_notifications.lock() {
+        notifications.push(format!("AI → [{}]: {}", from_phone, reply));
+    }
+
     // Update timestamps
     let now = Utc::now().naive_utc();
     conv.last_activity = now;
@@ -431,6 +436,10 @@ async fn finish_conversation(
         role: "assistant".to_string(),
         content: reply.to_string(),
     });
+    // Forward AI reply to owner via dev notification queue
+    if let Ok(mut notifications) = state.dev_notifications.lock() {
+        notifications.push(format!("AI → [{}]: {}", conv.phone, reply));
+    }
     let now = Utc::now().naive_utc();
     conv.last_activity = now;
     conv.expires_at = now + Duration::minutes(30);
