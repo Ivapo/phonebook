@@ -276,7 +276,8 @@ tr:last-child td { border-bottom: none; }
       </div>
       <div class="form-group">
         <label>Availability</label>
-        <textarea id="settAvailability" placeholder="e.g. Mon-Fri 9am-5pm"></textarea>
+        <div id="availabilitySlots"></div>
+        <button type="button" class="btn btn-primary btn-sm" style="margin-top:0.5rem" onclick="addSlot()">+ Add Time Slot</button>
       </div>
       <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
     </div>
@@ -455,6 +456,66 @@ async function doUnblock(phone) {
   } catch (e) { toast('Error: ' + e.message); }
 }
 
+// Settings — Availability Slots
+const DAYS = ['mon','tue','wed','thu','fri','sat','sun'];
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function addSlot(day='mon', start='09:00', end='17:00') {
+  const container = document.getElementById('availabilitySlots');
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem';
+  const sel = document.createElement('select');
+  sel.className = 'slot-day';
+  sel.style.cssText = 'padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem';
+  DAYS.forEach((d,i) => {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = DAY_LABELS[i];
+    if (d === day) opt.selected = true;
+    sel.appendChild(opt);
+  });
+  const startInput = document.createElement('input');
+  startInput.type = 'time'; startInput.className = 'slot-start'; startInput.value = start;
+  startInput.style.cssText = 'padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem';
+  const endInput = document.createElement('input');
+  endInput.type = 'time'; endInput.className = 'slot-end'; endInput.value = end;
+  endInput.style.cssText = 'padding:0.4rem 0.5rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem';
+  const removeBtn = document.createElement('button');
+  removeBtn.className = 'btn btn-danger btn-sm';
+  removeBtn.textContent = 'Remove';
+  removeBtn.onclick = () => row.remove();
+  row.appendChild(sel);
+  row.appendChild(startInput);
+  row.appendChild(endInput);
+  row.appendChild(removeBtn);
+  container.appendChild(row);
+}
+
+function collectSlots() {
+  const rows = document.getElementById('availabilitySlots').children;
+  const slots = [];
+  for (const row of rows) {
+    const day = row.querySelector('.slot-day')?.value;
+    const start = row.querySelector('.slot-start')?.value;
+    const end = row.querySelector('.slot-end')?.value;
+    if (day && start && end) slots.push({ day, start, end });
+  }
+  return JSON.stringify({ slots });
+}
+
+function loadSlots(raw) {
+  const container = document.getElementById('availabilitySlots');
+  container.innerHTML = '';
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.slots && Array.isArray(parsed.slots)) {
+      parsed.slots.forEach(s => addSlot(s.day, s.start, s.end));
+    }
+  } catch {
+    // Not valid JSON — ignore legacy text value
+  }
+}
+
 // Settings
 async function loadSettings() {
   try {
@@ -464,7 +525,7 @@ async function loadSettings() {
     document.getElementById('settOwnerPhone').value = s.owner_phone || '';
     document.getElementById('settTwilioNumber').value = s.twilio_phone_number || '';
     document.getElementById('settTimezone').value = s.timezone || '';
-    document.getElementById('settAvailability').value = s.availability || '';
+    loadSlots(s.availability || '');
   } catch (e) { toast('Failed to load settings: ' + e.message); }
 }
 
@@ -476,7 +537,7 @@ async function saveSettings() {
         business_name: document.getElementById('settBusinessName').value,
         owner_name: document.getElementById('settOwnerName').value,
         timezone: document.getElementById('settTimezone').value,
-        availability: document.getElementById('settAvailability').value
+        availability: collectSlots()
       })
     });
     toast('Settings saved');

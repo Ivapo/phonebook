@@ -641,6 +641,109 @@ async fn test_admin_bookings_and_cancel() {
     assert_eq!(json[0]["status"], "cancelled");
 }
 
+// ── Scheduling Validation Tests ──
+
+#[tokio::test]
+async fn test_booking_outside_business_hours_rejected() {
+    let state = test_state();
+
+    // Configure availability: Mon-Fri 09:00-17:00
+    {
+        let db = state.db.lock().unwrap();
+        let user = phonebook::models::User {
+            id: "default".to_string(),
+            business_name: "Test Biz".to_string(),
+            owner_name: "Alice".to_string(),
+            owner_phone: "+15559999999".to_string(),
+            twilio_account_sid: "".to_string(),
+            twilio_auth_token: "".to_string(),
+            twilio_phone_number: "+15551234567".to_string(),
+            availability: Some(
+                r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"},{"day":"tue","start":"09:00","end":"17:00"},{"day":"wed","start":"09:00","end":"17:00"},{"day":"thu","start":"09:00","end":"17:00"},{"day":"fri","start":"09:00","end":"17:00"}]}"#
+                    .to_string(),
+            ),
+            timezone: "America/New_York".to_string(),
+        };
+        phonebook::db::queries::save_user(&db, &user).unwrap();
+    }
+
+    // The MockLlm returns a booking for Sunday (2025-06-15 is a Sunday) at 14:00
+    // which is outside Mon-Fri availability
+    let reply = phonebook::services::conversation::process_message(
+        &state,
+        "+15550001111",
+        "I'd like to book an appointment",
+    )
+    .await
+    .unwrap();
+
+    // Should get a rejection about business hours
+    assert!(
+        reply.contains("outside our business hours") || reply.contains("available"),
+        "Expected business hours rejection, got: {reply}"
+    );
+}
+
+#[tokio::test]
+async fn test_conflicting_booking_rejected() {
+    let state = test_state();
+
+    // Create an existing booking at the same time the MockLlm will propose (2025-06-15 14:00)
+    {
+        let db = state.db.lock().unwrap();
+        let booking = phonebook::models::Booking {
+            id: "conflict-1".to_string(),
+            customer_phone: "+15559990000".to_string(),
+            customer_name: Some("Existing".to_string()),
+            date_time: chrono::NaiveDateTime::parse_from_str(
+                "2025-06-15 14:00:00",
+                "%Y-%m-%d %H:%M:%S",
+            )
+            .unwrap(),
+            duration_minutes: 60,
+            status: phonebook::models::BookingStatus::Confirmed,
+            notes: None,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
+        };
+        phonebook::db::queries::create_booking(&db, &booking).unwrap();
+    }
+
+    let reply = phonebook::services::conversation::process_message(
+        &state,
+        "+15550002222",
+        "I'd like to book an appointment",
+    )
+    .await
+    .unwrap();
+
+    assert!(
+        reply.contains("already booked") || reply.contains("different time"),
+        "Expected conflict rejection, got: {reply}"
+    );
+}
+
+#[tokio::test]
+async fn test_valid_booking_succeeds() {
+    let state = test_state();
+
+    // No availability restrictions, no conflicting bookings
+    // MockLlm proposes 2025-06-15 14:00
+    let reply = phonebook::services::conversation::process_message(
+        &state,
+        "+15550003333",
+        "I'd like to book an appointment",
+    )
+    .await
+    .unwrap();
+
+    // Should get the LLM's normal response (not a validation error)
+    assert!(
+        reply.contains("June 15") || reply.contains("2:00 PM") || reply.contains("book"),
+        "Expected booking proposal, got: {reply}"
+    );
+}
+
 // ── Health Check ──
 
 #[tokio::test]

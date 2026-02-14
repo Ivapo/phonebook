@@ -4,10 +4,11 @@ use chrono::{Duration, Utc};
 
 use crate::db::queries;
 use crate::models::{
-    Booking, BookingStatus, Conversation, ConversationMessage, ConversationState, Intent,
-    PendingBooking,
+    Availability, Booking, BookingStatus, Conversation, ConversationMessage, ConversationState,
+    Intent, PendingBooking,
 };
 use crate::services::ai::intent::extract_intent;
+use crate::services::scheduling::validate_booking_time;
 use crate::state::AppState;
 
 pub async fn process_message(
@@ -22,6 +23,16 @@ pub async fn process_message(
     }
     .unwrap_or_else(|| new_conversation(from_phone));
 
+    // Load user availability
+    let availability = {
+        let db = state.db.lock().unwrap();
+        queries::get_user(&db, "default")
+            .ok()
+            .flatten()
+            .and_then(|u| u.availability)
+            .and_then(|s| Availability::from_json(&s).ok())
+    };
+
     // Append user message
     conv.messages.push(ConversationMessage {
         role: "user".to_string(),
@@ -29,10 +40,16 @@ pub async fn process_message(
     });
 
     // Build business context
-    let business_context = format!(
+    let mut business_context = format!(
         "Business phone: {}. Owner phone: {}.",
         state.config.twilio_phone_number, state.config.owner_phone,
     );
+    if let Some(ref avail) = availability {
+        let hours = avail.to_human_readable();
+        if !hours.is_empty() {
+            business_context.push_str(&format!(" Business hours: {hours}."));
+        }
+    }
 
     // Extract intent via LLM
     let extracted = extract_intent(
@@ -60,7 +77,7 @@ pub async fn process_message(
 
             if has_enough_info {
                 // We have enough info to propose a time
-                conv.pending_booking = Some(PendingBooking {
+                let pending = PendingBooking {
                     customer_name: extracted.customer_name,
                     date_time: make_datetime_string(
                         extracted.requested_date.as_deref(),
@@ -68,7 +85,23 @@ pub async fn process_message(
                     ),
                     duration_minutes: extracted.duration_minutes,
                     notes: extracted.notes,
-                });
+                };
+
+                // Validate proposed time
+                if let Some(ref dt_str) = pending.date_time {
+                    if let Some(validation_err) = try_validate_time(
+                        state,
+                        dt_str,
+                        pending.duration_minutes.unwrap_or(60),
+                        availability.as_ref(),
+                    ) {
+                        conv.pending_booking = Some(pending);
+                        conv.state = ConversationState::CollectingInfo;
+                        return finish_conversation(state, &mut conv, &validation_err).await;
+                    }
+                }
+
+                conv.pending_booking = Some(pending);
                 conv.state = ConversationState::Confirming;
             } else {
                 // Need more info
@@ -122,7 +155,22 @@ pub async fn process_message(
                     || extracted.requested_date.is_some()
                     || extracted.requested_time.is_some())
             {
-                conv.state = ConversationState::Confirming;
+                // Validate before transitioning to Confirming
+                let should_confirm =
+                    if let Some(ref dt_str) = conv.pending_booking.as_ref().and_then(|p| p.date_time.clone()) {
+                        let dur = conv.pending_booking.as_ref().and_then(|p| p.duration_minutes).unwrap_or(60);
+                        if let Some(validation_err) = try_validate_time(state, dt_str, dur, availability.as_ref()) {
+                            conv.state = ConversationState::CollectingInfo;
+                            return finish_conversation(state, &mut conv, &validation_err).await;
+                        }
+                        true
+                    } else {
+                        true
+                    };
+
+                if should_confirm {
+                    conv.state = ConversationState::Confirming;
+                }
             }
 
             extracted.message_to_customer.clone()
@@ -131,6 +179,15 @@ pub async fn process_message(
         // Customer confirms a proposed booking
         (ConversationState::Confirming, Intent::Confirm) => {
             if let Some(ref pending) = conv.pending_booking {
+                // Final validation before creating booking
+                if let Some(ref dt_str) = pending.date_time {
+                    let dur = pending.duration_minutes.unwrap_or(60);
+                    if let Some(validation_err) = try_validate_time(state, dt_str, dur, availability.as_ref()) {
+                        conv.state = ConversationState::CollectingInfo;
+                        return finish_conversation(state, &mut conv, &validation_err).await;
+                    }
+                }
+
                 let booking = create_booking_from_pending(from_phone, pending);
                 let ics_link = format!(
                     "/calendar/{}.ics",
@@ -246,11 +303,19 @@ pub async fn process_message(
 
                 let has_time = extracted.requested_date.is_some()
                     && extracted.requested_time.is_some();
-                conv.state = if has_time {
-                    ConversationState::Confirming
+
+                if has_time {
+                    if let Some(ref dt_str) = conv.pending_booking.as_ref().and_then(|p| p.date_time.clone()) {
+                        let dur = conv.pending_booking.as_ref().and_then(|p| p.duration_minutes).unwrap_or(60);
+                        if let Some(validation_err) = try_validate_time(state, dt_str, dur, availability.as_ref()) {
+                            conv.state = ConversationState::CollectingInfo;
+                            return finish_conversation(state, &mut conv, &validation_err).await;
+                        }
+                    }
+                    conv.state = ConversationState::Confirming;
                 } else {
-                    ConversationState::CollectingInfo
-                };
+                    conv.state = ConversationState::CollectingInfo;
+                }
             } else {
                 conv.state = ConversationState::Idle;
                 conv.pending_booking = None;
@@ -333,6 +398,42 @@ fn create_booking_from_pending(phone: &str, pending: &PendingBooking) -> Booking
         created_at: now,
         updated_at: now,
     }
+}
+
+fn try_validate_time(
+    state: &Arc<AppState>,
+    dt_str: &str,
+    duration_minutes: i32,
+    availability: Option<&Availability>,
+) -> Option<String> {
+    let dt = chrono::NaiveDateTime::parse_from_str(dt_str, "%Y-%m-%d %H:%M")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(dt_str, "%Y-%m-%d %H:%M:%S"))
+        .ok()?;
+
+    let db = state.db.lock().unwrap();
+    match validate_booking_time(&db, &dt, duration_minutes, availability) {
+        Ok(()) => None,
+        Err(e) => Some(e.to_string()),
+    }
+}
+
+async fn finish_conversation(
+    state: &Arc<AppState>,
+    conv: &mut Conversation,
+    reply: &str,
+) -> anyhow::Result<String> {
+    conv.messages.push(ConversationMessage {
+        role: "assistant".to_string(),
+        content: reply.to_string(),
+    });
+    let now = Utc::now().naive_utc();
+    conv.last_activity = now;
+    conv.expires_at = now + Duration::minutes(30);
+    {
+        let db = state.db.lock().unwrap();
+        queries::save_conversation(&db, conv)?;
+    }
+    Ok(reply.to_string())
 }
 
 async fn notify_owner(state: &Arc<AppState>, message: &str) {
