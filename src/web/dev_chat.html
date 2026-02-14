@@ -11,8 +11,7 @@
   --border: #dee2e6;
   --primary: #2563eb;
   --primary-hover: #1d4ed8;
-  --danger: #dc2626;
-  --success: #16a34a;
+  --indigo: #4f46e5;
   --text: #1f2937;
   --text-muted: #6b7280;
   --radius: 8px;
@@ -35,40 +34,47 @@ body {
 header {
   background: var(--card);
   border-bottom: 1px solid var(--border);
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
 }
 
-header h1 { font-size: 1.25rem; }
+header h1 { font-size: 1.1rem; }
 
 .status-bar {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
 }
 
 .badge {
   display: inline-block;
-  padding: 0.125rem 0.5rem;
+  padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
 .badge-active { background: #dcfce7; color: #166534; }
 .badge-paused { background: #fef3c7; color: #92400e; }
 
-.panels {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  padding: 1rem;
+/* Main layout: flexbox with drag handles */
+.layout {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
   min-height: 0;
+  gap: 0;
+}
+
+.top-row {
+  flex: 1;
+  display: flex;
+  min-height: 120px;
 }
 
 .panel {
@@ -78,39 +84,236 @@ header h1 { font-size: 1.25rem; }
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
+.panel-app { flex: 1; }
+.panel-owner { flex: 1; }
+
+.panel-customer {
+  min-height: 100px;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+/* Drag handles */
+.handle-v {
+  width: 7px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.handle-v::after {
+  content: '';
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.handle-v:hover::after { background: var(--primary); }
+
+.handle-h {
+  height: 7px;
+  cursor: row-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.handle-h::after {
+  content: '';
+  height: 3px;
+  width: 32px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+
+.handle-h:hover::after { background: var(--primary); }
+
+body.resizing { cursor: col-resize; }
+body.resizing-v { cursor: row-resize; }
+
 .panel-header {
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem;
   border-bottom: 1px solid var(--border);
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
 }
 
-.panel-header .phone {
+.panel-header .phone-input {
   font-weight: 400;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  width: 120px;
+  font-family: inherit;
+}
+
+.panel-header .phone-input:focus { outline: none; border-color: var(--primary); }
+
+.panel-header .phone-label {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+/* Inbox layout (used by App and Owner panels) */
+.inbox-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.contact-sidebar {
+  width: 130px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.contact-item {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+}
+
+.contact-item:hover { background: #f3f4f6; }
+.contact-item.active { background: #eff6ff; font-weight: 600; }
+
+.contact-item .contact-phone {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-item .unread-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  display: none;
+}
+
+.contact-item.unread .unread-dot { display: block; }
+
+.thread-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.thread-header {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.thread-header strong { color: var(--text); }
+
+.thread-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-muted);
   font-size: 0.8rem;
 }
 
+.thread-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* Thread message bubbles */
+.tmsg {
+  max-width: 85%;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.tmsg-customer {
+  align-self: flex-start;
+  background: var(--msg-received);
+  color: var(--text);
+  border-bottom-left-radius: 0.15rem;
+}
+
+.tmsg-ai {
+  align-self: flex-end;
+  background: var(--indigo);
+  color: #fff;
+  border-bottom-right-radius: 0.15rem;
+}
+
+.tmsg-owner {
+  align-self: flex-end;
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 0.15rem;
+}
+
+.tmsg-system {
+  align-self: center;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.7rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.6rem;
+}
+
+.tmsg-label {
+  font-size: 0.55rem;
+  opacity: 0.7;
+  margin-bottom: 0.05rem;
+}
+
+/* Customer panel messages */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0.5rem 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
 }
 
 .msg {
-  max-width: 80%;
-  padding: 0.5rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.875rem;
+  max-width: 75%;
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
   word-wrap: break-word;
   white-space: pre-wrap;
 }
@@ -119,53 +322,51 @@ header h1 { font-size: 1.25rem; }
   align-self: flex-end;
   background: var(--msg-sent);
   color: #fff;
-  border-bottom-right-radius: 0.25rem;
+  border-bottom-right-radius: 0.15rem;
 }
 
 .msg-received {
   align-self: flex-start;
   background: var(--msg-received);
   color: var(--text);
-  border-bottom-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.15rem;
 }
 
 .msg-error {
   align-self: center;
   background: #fee2e2;
   color: #991b1b;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   border-radius: var(--radius);
 }
 
+/* Input bars */
 .chat-input {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 .chat-input input {
   flex: 1;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.6rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-family: inherit;
 }
 
-.chat-input input:focus {
-  outline: none;
-  border-color: var(--primary);
-}
+.chat-input input:focus { outline: none; border-color: var(--primary); }
 
 .chat-input button {
-  padding: 0.5rem 1rem;
+  padding: 0.35rem 0.75rem;
   background: var(--primary);
   color: #fff;
   border: none;
   border-radius: var(--radius);
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   cursor: pointer;
   font-weight: 500;
 }
@@ -173,18 +374,74 @@ header h1 { font-size: 1.25rem; }
 .chat-input button:hover { background: var(--primary-hover); }
 .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.reply-target {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.7rem;
+  color: var(--primary);
+  background: #eff6ff;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
 .hint {
-  padding: 0.5rem 1rem;
-  font-size: 0.75rem;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-@media (max-width: 700px) {
-  .panels {
-    grid-template-columns: 1fr;
-  }
+/* Customer tabs */
+.customer-tabs {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.customer-tab {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s;
+}
+
+.customer-tab:hover { border-color: var(--primary); color: var(--text); }
+
+.customer-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* Toast */
+.toast-container {
+  position: fixed;
+  top: 3rem;
+  right: 0.5rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.toast {
+  background: #fef3c7;
+  color: #92400e;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
 </head>
@@ -195,90 +452,348 @@ header h1 { font-size: 1.25rem; }
   <div class="status-bar">
     <span>Agent:</span>
     <span class="badge badge-active" id="statusBadge">ACTIVE</span>
-    <a href="/admin" style="font-size:0.8rem;color:var(--primary);text-decoration:none">Admin</a>
+    <a href="/admin" style="font-size:0.75rem;color:var(--primary);text-decoration:none">Admin</a>
   </div>
 </header>
 
-<div class="panels">
-  <!-- Customer Panel -->
-  <div class="panel">
+<div class="toast-container" id="toasts"></div>
+
+<div class="layout">
+  <div class="top-row">
+    <!-- App / AI Panel (top-left) -->
+    <div class="panel panel-app" id="panelApp">
+      <div class="panel-header">
+        App (AI Agent)
+        <span class="phone-label" id="appPhone"></span>
+      </div>
+      <div class="inbox-layout">
+        <div class="contact-sidebar" id="appContacts"></div>
+        <div class="thread-area" id="appThreadArea">
+          <div class="thread-header" id="appThreadHeader" style="display:none"></div>
+          <div class="thread-empty" id="appThreadEmpty">No conversations yet</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="handle-v" id="handleV"></div>
+
+    <!-- Owner Panel (top-right) -->
+    <div class="panel panel-owner" id="panelOwner">
+      <div class="panel-header">
+        Owner
+        <span class="phone-label" id="ownerPhone"></span>
+      </div>
+      <div class="inbox-layout">
+        <div class="contact-sidebar" id="ownerContacts"></div>
+        <div class="thread-area" id="ownerThreadArea">
+          <div class="thread-header" id="ownerThreadHeader" style="display:none"></div>
+          <div class="thread-empty" id="ownerThreadEmpty">Select a conversation</div>
+        </div>
+      </div>
+      <div class="reply-target" id="replyTarget" style="display:none">
+        Replying to <strong id="replyTargetPhone"></strong>
+      </div>
+      <div class="chat-input">
+        <input type="text" id="ownerInput" placeholder="Click a contact to reply, or # command..." autocomplete="off">
+        <button id="ownerSend" onclick="sendOwnerMsg()">Send</button>
+      </div>
+      <div class="hint">Commands: #pause, #resume, #status, #block &lt;number&gt;, #unblock &lt;number&gt;</div>
+    </div>
+  </div>
+
+  <div class="handle-h" id="handleH"></div>
+
+  <!-- Customer Panel (bottom, full width) -->
+  <div class="panel panel-customer" id="panelCustomer">
     <div class="panel-header">
       Customer
-      <span class="phone">+15550001111</span>
+      <div class="customer-tabs" id="customerTabs"></div>
     </div>
     <div class="chat-messages" id="customerMessages"></div>
     <div class="chat-input">
       <input type="text" id="customerInput" placeholder="Type a message..." autocomplete="off">
-      <button id="customerSend" onclick="sendMsg('customer')">Send</button>
+      <button id="customerSend" onclick="sendCustomerMsg()">Send</button>
     </div>
-  </div>
-
-  <!-- Owner Panel -->
-  <div class="panel">
-    <div class="panel-header">
-      Owner
-      <span class="phone" id="ownerPhone"></span>
-    </div>
-    <div class="chat-messages" id="ownerMessages"></div>
-    <div class="chat-input">
-      <input type="text" id="ownerInput" placeholder="Type a message or # command..." autocomplete="off">
-      <button id="ownerSend" onclick="sendMsg('owner')">Send</button>
-    </div>
-    <div class="hint">Commands: #pause, #resume, #status, #block &lt;number&gt;, #unblock &lt;number&gt;</div>
   </div>
 </div>
 
 <script>
-const CUSTOMER_PHONE = '+15550001111';
 let OWNER_PHONE = '';
+let APP_PHONE = '';
 
-// Fetch owner phone from admin status endpoint (no auth needed for dev)
-async function fetchStatus() {
-  try {
-    const res = await fetch('/api/admin/status');
-    if (res.ok) {
-      const data = await res.json();
-      const paused = data.paused;
-      const badge = document.getElementById('statusBadge');
-      badge.textContent = paused ? 'PAUSED' : 'ACTIVE';
-      badge.className = 'badge ' + (paused ? 'badge-paused' : 'badge-active');
-    }
-  } catch {}
+// ── Customer presets ──
+const CUSTOMERS = [
+  { phone: '+301', label: 'Alice' },
+  { phone: '+302', label: 'Bob' },
+  { phone: '+303', label: 'Carol' },
+  { phone: '+304', label: 'Dave' },
+];
+let activeCustomer = 0;
+const customerMessages = {};  // phone -> [{text, type}]
+CUSTOMERS.forEach(c => { customerMessages[c.phone] = []; });
+
+function getCustomerPhone() {
+  return CUSTOMERS[activeCustomer].phone;
 }
 
-// Try to get owner phone from settings
-async function init() {
-  try {
-    const res = await fetch('/api/admin/settings');
-    if (res.ok) {
-      const data = await res.json();
-      OWNER_PHONE = data.owner_phone || '+15559999999';
-    }
-  } catch {}
-  if (!OWNER_PHONE) OWNER_PHONE = '+15559999999';
-  document.getElementById('ownerPhone').textContent = OWNER_PHONE;
-  fetchStatus();
-  setInterval(fetchStatus, 5000);
+function renderCustomerTabs() {
+  const container = document.getElementById('customerTabs');
+  container.innerHTML = '';
+  CUSTOMERS.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'customer-tab' + (i === activeCustomer ? ' active' : '');
+    btn.textContent = c.label + ' ' + c.phone;
+    btn.onclick = () => switchCustomer(i);
+    container.appendChild(btn);
+  });
 }
 
-function appendMsg(panel, text, type) {
-  const container = document.getElementById(panel + 'Messages');
-  const div = document.createElement('div');
-  div.className = 'msg msg-' + type;
-  div.textContent = text;
-  container.appendChild(div);
+function switchCustomer(idx) {
+  activeCustomer = idx;
+  renderCustomerTabs();
+  renderCustomerMessages();
+  document.getElementById('customerInput').focus();
+}
+
+function renderCustomerMessages() {
+  const container = document.getElementById('customerMessages');
+  container.innerHTML = '';
+  const msgs = customerMessages[getCustomerPhone()] || [];
+  msgs.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'msg msg-' + m.type;
+    div.textContent = m.text;
+    container.appendChild(div);
+  });
   container.scrollTop = container.scrollHeight;
 }
 
-async function sendMsg(panel) {
-  const inputEl = document.getElementById(panel + 'Input');
-  const btnEl = document.getElementById(panel + 'Send');
+// ── State ──
+// App panel: read-only view of AI conversations
+const appThreads = {};     // phone -> [{content, kind}]
+const appContacts = [];
+let appActiveThread = null;
+
+// Owner panel: interactive inbox
+const ownerThreads = {};   // phone -> [{content, kind}]
+const ownerContacts = [];
+let ownerActiveThread = null;
+
+// ── Init ──
+
+async function fetchConfig() {
+  try {
+    const res = await fetch('/api/dev/config');
+    if (res.ok) {
+      const data = await res.json();
+      OWNER_PHONE = data.owner_phone || '';
+      APP_PHONE = data.twilio_phone_number || '';
+      document.getElementById('ownerPhone').textContent = OWNER_PHONE || '(not set)';
+      document.getElementById('appPhone').textContent = APP_PHONE || 'Business Line';
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = data.paused ? 'PAUSED' : 'ACTIVE';
+      badge.className = 'badge ' + (data.paused ? 'badge-paused' : 'badge-active');
+    }
+  } catch {}
+}
+
+async function init() {
+  renderCustomerTabs();
+  await fetchConfig();
+  if (!OWNER_PHONE) {
+    showToast('OWNER_PHONE not configured — set it in .env and restart');
+  }
+  setInterval(fetchConfig, 5000);
+}
+
+// ── Generic inbox helpers ──
+
+function ensureContact(contactList, threadMap, phone) {
+  const idx = contactList.indexOf(phone);
+  if (idx === -1) {
+    contactList.unshift(phone);
+  } else if (idx > 0) {
+    contactList.splice(idx, 1);
+    contactList.unshift(phone);
+  }
+  if (!threadMap[phone]) threadMap[phone] = [];
+}
+
+function renderContactSidebar(elementId, contactList, threadMap, activePhone, onSelect) {
+  const sidebar = document.getElementById(elementId);
+  sidebar.innerHTML = '';
+  contactList.forEach(phone => {
+    const el = document.createElement('div');
+    el.className = 'contact-item' + (phone === activePhone ? ' active' : '');
+    const thread = threadMap[phone] || [];
+    if (thread.some(m => m._unread)) el.classList.add('unread');
+    el.innerHTML = '<span class="contact-phone">' + escapeHtml(phone) + '</span><span class="unread-dot"></span>';
+    el.onclick = () => onSelect(phone);
+    sidebar.appendChild(el);
+  });
+}
+
+function renderThreadMessages(areaId, emptyId, threadMap, activePhone) {
+  const area = document.getElementById(areaId);
+  const empty = document.getElementById(emptyId);
+  const old = area.querySelector('.thread-messages');
+  if (old) old.remove();
+
+  if (!activePhone || !threadMap[activePhone]) {
+    if (empty) empty.style.display = 'flex';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  const container = document.createElement('div');
+  container.className = 'thread-messages';
+
+  threadMap[activePhone].forEach(m => {
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+
+    if (m.kind === 'customer_message') {
+      wrapper.style.alignItems = 'flex-start';
+      const bubble = document.createElement('div');
+      bubble.className = 'tmsg tmsg-customer';
+      bubble.textContent = m.content;
+      wrapper.appendChild(bubble);
+    } else if (m.kind === 'ai_reply') {
+      wrapper.style.alignItems = 'flex-end';
+      const label = document.createElement('div');
+      label.className = 'tmsg-label';
+      label.textContent = 'AI';
+      label.style.textAlign = 'right';
+      wrapper.appendChild(label);
+      const bubble = document.createElement('div');
+      bubble.className = 'tmsg tmsg-ai';
+      bubble.textContent = m.content;
+      wrapper.appendChild(bubble);
+    } else if (m.kind === 'owner_reply') {
+      wrapper.style.alignItems = 'flex-end';
+      const label = document.createElement('div');
+      label.className = 'tmsg-label';
+      label.textContent = 'Owner';
+      label.style.textAlign = 'right';
+      wrapper.appendChild(label);
+      const bubble = document.createElement('div');
+      bubble.className = 'tmsg tmsg-owner';
+      bubble.textContent = m.content;
+      wrapper.appendChild(bubble);
+    } else if (m.kind === 'system') {
+      wrapper.style.alignItems = 'center';
+      const bubble = document.createElement('div');
+      bubble.className = 'tmsg tmsg-system';
+      bubble.textContent = m.content;
+      wrapper.appendChild(bubble);
+    }
+
+    container.appendChild(wrapper);
+  });
+
+  area.appendChild(container);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ── App panel (read-only) ──
+
+function selectAppThread(phone) {
+  appActiveThread = phone;
+  if (appThreads[phone]) appThreads[phone].forEach(m => { m._unread = false; });
+  const hdr = document.getElementById('appThreadHeader');
+  hdr.style.display = 'block';
+  hdr.innerHTML = '<strong>' + escapeHtml(phone) + '</strong> via ' + escapeHtml(APP_PHONE || 'Business Line');
+  renderAppPanel();
+}
+
+function renderAppPanel() {
+  renderContactSidebar('appContacts', appContacts, appThreads, appActiveThread, selectAppThread);
+  renderThreadMessages('appThreadArea', 'appThreadEmpty', appThreads, appActiveThread);
+}
+
+// ── Owner panel ──
+
+function selectOwnerThread(phone) {
+  ownerActiveThread = phone;
+  if (ownerThreads[phone]) ownerThreads[phone].forEach(m => { m._unread = false; });
+  const hdr = document.getElementById('ownerThreadHeader');
+  hdr.style.display = 'block';
+  hdr.innerHTML = '<strong>' + escapeHtml(phone) + '</strong> via ' + escapeHtml(APP_PHONE || 'Business Line');
+  document.getElementById('replyTarget').style.display = 'block';
+  document.getElementById('replyTargetPhone').textContent = phone;
+  document.getElementById('ownerInput').placeholder = 'Reply to ' + phone + ', or # command...';
+  renderOwnerPanel();
+}
+
+function renderOwnerPanel() {
+  renderContactSidebar('ownerContacts', ownerContacts, ownerThreads, ownerActiveThread, selectOwnerThread);
+  renderThreadMessages('ownerThreadArea', 'ownerThreadEmpty', ownerThreads, ownerActiveThread);
+}
+
+// ── Notification processing ──
+
+function processNotifications(notifications) {
+  if (!notifications || !notifications.length) return;
+  const hadNoAppThread = appActiveThread === null;
+  const hadNoOwnerThread = ownerActiveThread === null;
+
+  notifications.forEach(n => {
+    if (n.phone) {
+      // App panel gets everything (customer messages + AI replies)
+      ensureContact(appContacts, appThreads, n.phone);
+      appThreads[n.phone].push({
+        content: n.content,
+        kind: n.kind,
+        _unread: n.phone !== appActiveThread,
+      });
+
+      // Owner panel gets everything so owner has full context to reply
+      ensureContact(ownerContacts, ownerThreads, n.phone);
+      ownerThreads[n.phone].push({
+        content: n.content,
+        kind: n.kind,
+        _unread: n.phone !== ownerActiveThread,
+      });
+    } else {
+      showToast(n.content);
+    }
+  });
+
+  if (hadNoAppThread && appContacts.length > 0) selectAppThread(appContacts[0]);
+  else renderAppPanel();
+
+  if (hadNoOwnerThread && ownerContacts.length > 0) selectOwnerThread(ownerContacts[0]);
+  else renderOwnerPanel();
+}
+
+function showToast(msg) {
+  const container = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => { el.remove(); }, 5000);
+}
+
+// ── Customer panel ──
+
+function appendCustomerMsg(phone, text, type) {
+  if (!customerMessages[phone]) customerMessages[phone] = [];
+  customerMessages[phone].push({ text, type });
+  if (phone === getCustomerPhone()) {
+    renderCustomerMessages();
+  }
+}
+
+async function sendCustomerMsg() {
+  const inputEl = document.getElementById('customerInput');
+  const btnEl = document.getElementById('customerSend');
   const message = inputEl.value.trim();
   if (!message) return;
 
-  const fromPhone = panel === 'customer' ? CUSTOMER_PHONE : OWNER_PHONE;
-
-  appendMsg(panel, message, 'sent');
+  const fromPhone = getCustomerPhone();
+  appendCustomerMsg(fromPhone, message, 'sent');
   inputEl.value = '';
   btnEl.disabled = true;
 
@@ -290,45 +805,165 @@ async function sendMsg(panel) {
     });
     const data = await res.json();
     if (data.success) {
-      if (panel === 'customer') {
-        // Show AI reply in customer panel
-        if (data.reply) appendMsg('customer', data.reply, 'received');
-        // Show forwarded messages + notifications in owner panel
-        if (data.owner_notifications) {
-          data.owner_notifications.forEach(n => appendMsg('owner', n, 'received'));
-        }
-      } else {
-        // Owner panel
-        if (data.customer_delivery) {
-          // Direct reply to customer — show in customer panel
-          appendMsg('customer', 'Owner: ' + data.customer_delivery, 'received');
-        } else if (data.reply) {
-          // Admin command response
-          appendMsg('owner', data.reply, 'received');
-        }
-        if (data.owner_notifications) {
-          data.owner_notifications.forEach(n => appendMsg('owner', n, 'received'));
-        }
-      }
+      if (data.reply) appendCustomerMsg(fromPhone, data.reply, 'received');
+      processNotifications(data.owner_notifications);
     } else {
-      appendMsg(panel, 'Error: ' + (data.error || 'Unknown error'), 'error');
+      appendCustomerMsg(fromPhone, 'Error: ' + (data.error || 'Unknown error'), 'error');
     }
   } catch (e) {
-    appendMsg(panel, 'Network error: ' + e.message, 'error');
+    appendCustomerMsg(fromPhone, 'Network error: ' + e.message, 'error');
   }
 
   btnEl.disabled = false;
   inputEl.focus();
-  fetchStatus();
+  fetchConfig();
 }
 
-// Enter key to send
+// ── Owner send ──
+
+async function sendOwnerMsg() {
+  const inputEl = document.getElementById('ownerInput');
+  const btnEl = document.getElementById('ownerSend');
+  const message = inputEl.value.trim();
+  if (!message) return;
+
+  inputEl.value = '';
+  btnEl.disabled = true;
+
+  const isCommand = message.startsWith('#');
+
+  try {
+    const payload = { from_phone: OWNER_PHONE, message };
+    if (!isCommand && ownerActiveThread) {
+      payload.to_phone = ownerActiveThread;
+    }
+
+    const res = await fetch('/api/dev/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (isCommand && data.reply) {
+        if (ownerActiveThread) {
+          ensureContact(ownerContacts, ownerThreads, ownerActiveThread);
+          ownerThreads[ownerActiveThread].push({ content: data.reply, kind: 'system', _unread: false });
+          renderOwnerPanel();
+        } else {
+          showToast(data.reply);
+        }
+      }
+
+      if (data.customer_delivery && data.customer_delivery_phone) {
+        const phone = data.customer_delivery_phone;
+
+        // Show in owner thread
+        ensureContact(ownerContacts, ownerThreads, phone);
+        ownerThreads[phone].push({ content: data.customer_delivery, kind: 'owner_reply', _unread: false });
+
+        // Show in app thread too
+        ensureContact(appContacts, appThreads, phone);
+        appThreads[phone].push({ content: data.customer_delivery, kind: 'owner_reply', _unread: phone !== appActiveThread });
+
+        // Show in customer panel for that phone
+        appendCustomerMsg(phone, data.customer_delivery, 'received');
+
+        renderAppPanel();
+        renderOwnerPanel();
+      }
+
+      processNotifications(data.owner_notifications);
+    } else {
+      if (ownerActiveThread) {
+        ensureContact(ownerContacts, ownerThreads, ownerActiveThread);
+        ownerThreads[ownerActiveThread].push({ content: 'Error: ' + (data.error || 'Unknown'), kind: 'system', _unread: false });
+        renderOwnerPanel();
+      } else {
+        showToast('Error: ' + (data.error || 'Unknown'));
+      }
+    }
+  } catch (e) {
+    showToast('Network error: ' + e.message);
+  }
+
+  btnEl.disabled = false;
+  inputEl.focus();
+  fetchConfig();
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
 document.getElementById('customerInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMsg('customer');
+  if (e.key === 'Enter') sendCustomerMsg();
 });
 document.getElementById('ownerInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMsg('owner');
+  if (e.key === 'Enter') sendOwnerMsg();
 });
+
+// ── Resizable panels ──
+
+(function() {
+  const handleV = document.getElementById('handleV');
+  const handleH = document.getElementById('handleH');
+  const panelApp = document.getElementById('panelApp');
+  const panelOwner = document.getElementById('panelOwner');
+  const topRow = panelApp.parentElement;
+  const panelCustomer = document.getElementById('panelCustomer');
+  const layout = document.querySelector('.layout');
+
+  // Vertical handle: resize app/owner width split
+  let draggingV = false;
+  handleV.addEventListener('mousedown', e => {
+    e.preventDefault();
+    draggingV = true;
+    document.body.classList.add('resizing');
+  });
+
+  // Horizontal handle: resize top row / customer height split
+  let draggingH = false;
+  handleH.addEventListener('mousedown', e => {
+    e.preventDefault();
+    draggingH = true;
+    document.body.classList.add('resizing-v');
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (draggingV) {
+      const rect = topRow.getBoundingClientRect();
+      const handleW = handleV.offsetWidth;
+      const x = e.clientX - rect.left;
+      const total = rect.width - handleW;
+      const pct = Math.max(15, Math.min(85, (x / rect.width) * 100));
+      panelApp.style.flex = 'none';
+      panelOwner.style.flex = 'none';
+      panelApp.style.width = pct + '%';
+      panelOwner.style.width = (100 - pct) + '%';
+    }
+    if (draggingH) {
+      const rect = layout.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const total = rect.height;
+      const topPct = Math.max(20, Math.min(85, (y / total) * 100));
+      topRow.style.flex = 'none';
+      topRow.style.height = topPct + '%';
+      panelCustomer.style.flex = 'none';
+      panelCustomer.style.height = (100 - topPct) + '%';
+      panelCustomer.style.maxHeight = 'none';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    draggingV = false;
+    draggingH = false;
+    document.body.classList.remove('resizing', 'resizing-v');
+  });
+})();
 
 init();
 </script>
