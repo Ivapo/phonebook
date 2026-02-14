@@ -2,8 +2,8 @@ use chrono::{NaiveDateTime, Utc};
 use rusqlite::{params, Connection};
 
 use crate::models::{
-    Booking, BookingStatus, Conversation, ConversationMessage, ConversationState, PendingBooking,
-    User,
+    Booking, BookingStatus, Conversation, ConversationMessage, ConversationState, InboxEvent,
+    InboxThread, PendingBooking, User,
 };
 
 // ── Conversations ──
@@ -462,6 +462,111 @@ pub fn save_user(conn: &Connection, user: &User) -> anyhow::Result<()> {
             user.availability,
             user.timezone,
         ],
+    )?;
+    Ok(())
+}
+
+// ── Inbox Events ──
+
+pub fn insert_inbox_event(
+    conn: &Connection,
+    phone: &str,
+    kind: &str,
+    content: &str,
+) -> anyhow::Result<i64> {
+    conn.execute(
+        "INSERT INTO inbox_events (phone, kind, content) VALUES (?1, ?2, ?3)",
+        params![phone, kind, content],
+    )?;
+    Ok(conn.last_insert_rowid())
+}
+
+pub fn get_inbox_threads(conn: &Connection) -> anyhow::Result<Vec<InboxThread>> {
+    let mut stmt = conn.prepare(
+        "SELECT e.phone, e.content, e.kind, e.created_at,
+                (SELECT COUNT(*) FROM inbox_events e2 WHERE e2.phone = e.phone AND e2.is_read = 0) as unread_count
+         FROM inbox_events e
+         INNER JOIN (
+             SELECT phone, MAX(id) as max_id FROM inbox_events GROUP BY phone
+         ) latest ON e.id = latest.max_id
+         ORDER BY e.created_at DESC",
+    )?;
+
+    let rows = stmt.query_map([], |row| {
+        Ok(InboxThread {
+            phone: row.get(0)?,
+            last_message: row.get(1)?,
+            last_kind: row.get(2)?,
+            last_activity: row.get(3)?,
+            unread_count: row.get(4)?,
+        })
+    })?;
+
+    let mut threads = vec![];
+    for row in rows {
+        threads.push(row?);
+    }
+    Ok(threads)
+}
+
+pub fn get_thread_events(
+    conn: &Connection,
+    phone: &str,
+    limit: i64,
+) -> anyhow::Result<Vec<InboxEvent>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, phone, kind, content, is_read, created_at
+         FROM inbox_events WHERE phone = ?1
+         ORDER BY id ASC LIMIT ?2",
+    )?;
+
+    let rows = stmt.query_map(params![phone, limit], |row| {
+        Ok(InboxEvent {
+            id: row.get(0)?,
+            phone: row.get(1)?,
+            kind: row.get(2)?,
+            content: row.get(3)?,
+            is_read: row.get::<_, i32>(4)? != 0,
+            created_at: row.get(5)?,
+        })
+    })?;
+
+    let mut events = vec![];
+    for row in rows {
+        events.push(row?);
+    }
+    Ok(events)
+}
+
+pub fn get_inbox_events_since(conn: &Connection, since_id: i64) -> anyhow::Result<Vec<InboxEvent>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, phone, kind, content, is_read, created_at
+         FROM inbox_events WHERE id > ?1
+         ORDER BY id ASC",
+    )?;
+
+    let rows = stmt.query_map(params![since_id], |row| {
+        Ok(InboxEvent {
+            id: row.get(0)?,
+            phone: row.get(1)?,
+            kind: row.get(2)?,
+            content: row.get(3)?,
+            is_read: row.get::<_, i32>(4)? != 0,
+            created_at: row.get(5)?,
+        })
+    })?;
+
+    let mut events = vec![];
+    for row in rows {
+        events.push(row?);
+    }
+    Ok(events)
+}
+
+pub fn mark_thread_read(conn: &Connection, phone: &str) -> anyhow::Result<()> {
+    conn.execute(
+        "UPDATE inbox_events SET is_read = 1 WHERE phone = ?1 AND is_read = 0",
+        params![phone],
     )?;
     Ok(())
 }

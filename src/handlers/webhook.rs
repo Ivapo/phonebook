@@ -12,7 +12,8 @@ use sha1::Sha1;
 
 use crate::db::queries;
 use crate::services::conversation;
-use crate::state::AppState;
+use crate::services::inbox::record_inbox_event;
+use crate::state::{AppState, DevNotification, DevNotificationKind};
 
 const PER_CUSTOMER_LIMIT: i64 = 15;
 const GLOBAL_LIMIT: i64 = 100;
@@ -145,7 +146,7 @@ pub async fn sms_webhook(
             let _ = queries::block_number(&db, &from, Some("auto-blocked: rate limit exceeded"), true);
         }
         let alert = format!("Auto-blocked {from}: exceeded {PER_CUSTOMER_LIMIT} messages/hour ({message_count} msgs)");
-        notify_owner(&state, &alert).await;
+        notify_owner(&state, &alert, Some(&from)).await;
         return twiml_response();
     }
 
@@ -158,7 +159,7 @@ pub async fn sms_webhook(
         tracing::warn!(global_count, "global rate limit exceeded, pausing agent");
         state.paused.store(true, Ordering::SeqCst);
         let alert = format!("Agent paused: global rate limit exceeded ({global_count} msgs/hour)");
-        notify_owner(&state, &alert).await;
+        notify_owner(&state, &alert, None).await;
         return twiml_response();
     }
 
@@ -253,10 +254,17 @@ pub async fn handle_admin_command(state: &Arc<AppState>, body: &str) -> String {
     }
 }
 
-async fn notify_owner(state: &Arc<AppState>, message: &str) {
+async fn notify_owner(state: &Arc<AppState>, message: &str, phone: Option<&str>) {
     // Always push to dev notification queue
     if let Ok(mut notifications) = state.dev_notifications.lock() {
-        notifications.push(message.to_string());
+        notifications.push(DevNotification {
+            phone: phone.map(|p| p.to_string()),
+            kind: DevNotificationKind::System,
+            content: message.to_string(),
+        });
+    }
+    if let Some(p) = phone {
+        record_inbox_event(state, p, "system", message);
     }
 
     if state.config.owner_phone.is_empty() {

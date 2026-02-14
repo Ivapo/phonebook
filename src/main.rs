@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::routing::{get, post};
 use axum::Router;
+use tokio::sync::broadcast;
 use tracing_subscriber::EnvFilter;
 
 use phonebook::config::AppConfig;
@@ -43,6 +44,8 @@ async fn main() -> anyhow::Result<()> {
         config.twilio_phone_number.clone(),
     );
 
+    let (inbox_tx, _) = broadcast::channel(256);
+
     let state = Arc::new(AppState {
         db: Arc::new(Mutex::new(conn)),
         config: config.clone(),
@@ -50,6 +53,7 @@ async fn main() -> anyhow::Result<()> {
         messaging: Box::new(messaging),
         paused: AtomicBool::new(false),
         dev_notifications: Mutex::new(Vec::new()),
+        inbox_tx,
     });
 
     let app = Router::new()
@@ -77,7 +81,20 @@ async fn main() -> anyhow::Result<()> {
             get(handlers::calendar::download_ics),
         )
         .route("/dev", get(handlers::dev::dev_page))
+        .route("/api/dev/config", get(handlers::dev::dev_config))
         .route("/api/dev/message", post(handlers::dev::send_message))
+        .route("/inbox", get(handlers::inbox::inbox_page))
+        .route("/api/inbox/threads", get(handlers::inbox::get_threads))
+        .route(
+            "/api/inbox/thread/:phone",
+            get(handlers::inbox::get_thread),
+        )
+        .route(
+            "/api/inbox/thread/:phone/read",
+            post(handlers::inbox::mark_read),
+        )
+        .route("/api/inbox/reply", post(handlers::inbox::send_reply))
+        .route("/api/inbox/events", get(handlers::inbox::events_stream))
         .with_state(state);
 
     let addr = format!("0.0.0.0:{}", config.port);

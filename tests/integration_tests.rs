@@ -8,6 +8,8 @@ use axum::routing::{get, post};
 use axum::Router;
 use tower::ServiceExt;
 
+use tokio::sync::broadcast;
+
 use phonebook::config::AppConfig;
 use phonebook::db;
 use phonebook::handlers;
@@ -81,6 +83,7 @@ fn test_config() -> AppConfig {
 fn test_state() -> Arc<AppState> {
     let config = test_config();
     let conn = db::init_db(":memory:").unwrap();
+    let (inbox_tx, _) = broadcast::channel(64);
     Arc::new(AppState {
         db: Arc::new(Mutex::new(conn)),
         config,
@@ -88,6 +91,7 @@ fn test_state() -> Arc<AppState> {
         messaging: Box::new(MockMessaging::new()),
         paused: AtomicBool::new(false),
         dev_notifications: Mutex::new(Vec::new()),
+        inbox_tx,
     })
 }
 
@@ -98,6 +102,7 @@ fn test_state_with_sent() -> (Arc<AppState>, Arc<Mutex<Vec<(String, String)>>>) 
     let messaging = MockMessaging {
         sent: Arc::clone(&sent),
     };
+    let (inbox_tx, _) = broadcast::channel(64);
     let state = Arc::new(AppState {
         db: Arc::new(Mutex::new(conn)),
         config,
@@ -105,6 +110,7 @@ fn test_state_with_sent() -> (Arc<AppState>, Arc<Mutex<Vec<(String, String)>>>) 
         messaging: Box::new(messaging),
         paused: AtomicBool::new(false),
         dev_notifications: Mutex::new(Vec::new()),
+        inbox_tx,
     });
     (state, sent)
 }

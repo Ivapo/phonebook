@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Inbox</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiSW5ib3giLCJzaG9ydF9uYW1lIjoiSW5ib3giLCJzdGFydF91cmwiOiIvaW5ib3giLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZjhmOWZhIiwidGhlbWVfY29sb3IiOiIjMjU2M2ViIn0=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2563eb">
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card: #fff;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
+  --radius: 12px;
+  --bubble-customer: #fff;
+  --bubble-ai: #e0e7ff;
+  --bubble-owner: #dbeafe;
+  --bubble-system: #fef3c7;
+  --badge: #ef4444;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.4;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Login ── */
+.login-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 90%; max-width: 340px;
+  text-align: center;
+}
+.login-box h2 { margin-bottom: 1rem; font-size: 1.25rem; }
+.login-box input {
+  width: 100%; padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+.login-box button {
+  width: 100%; padding: 0.6rem;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: 8px;
+  font-size: 1rem; cursor: pointer;
+}
+.login-box button:hover { background: var(--primary-hover); }
+.login-error { color: #dc2626; font-size: 0.85rem; margin-top: 0.5rem; }
+
+/* ── App Shell ── */
+#app {
+  display: none;
+  height: 100dvh;
+  position: relative;
+}
+#app.active { display: flex; }
+
+/* ── Thread List ── */
+#thread-list-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+}
+.thread-list-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 1.2rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+#thread-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.thread-item {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  gap: 0.75rem;
+  transition: background 0.15s;
+}
+.thread-item:hover { background: #f9fafb; }
+.thread-item.active { background: #eff6ff; }
+.thread-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 1rem;
+  flex-shrink: 0;
+}
+.thread-info { flex: 1; min-width: 0; }
+.thread-phone {
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-preview {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.thread-time {
+  font-size: 0.75rem;
+  color: var(--text-light);
+}
+.thread-badge {
+  background: var(--badge);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px; height: 20px;
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 5px;
+}
+.thread-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Thread View ── */
+#thread-view-panel {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  z-index: 10;
+}
+#thread-view-panel.active { display: flex; }
+
+.thread-view-header {
+  padding: 0.75rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.back-btn {
+  background: none; border: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--primary);
+  padding: 0;
+  line-height: 1;
+}
+.thread-view-phone {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+#messages {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.msg {
+  max-width: 80%;
+  padding: 0.6rem 0.85rem;
+  border-radius: 16px;
+  font-size: 0.92rem;
+  word-break: break-word;
+  position: relative;
+}
+.msg-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: 2px;
+  opacity: 0.7;
+}
+.msg-time {
+  font-size: 0.65rem;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+.msg.customer_message {
+  align-self: flex-start;
+  background: var(--bubble-customer);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.msg.ai_reply {
+  align-self: flex-end;
+  background: var(--bubble-ai);
+  border-bottom-right-radius: 4px;
+}
+.msg.owner_reply {
+  align-self: flex-end;
+  background: var(--bubble-owner);
+  border-bottom-right-radius: 4px;
+}
+.msg.system {
+  align-self: center;
+  background: var(--bubble-system);
+  border-radius: 20px;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.85rem;
+  max-width: 90%;
+}
+
+/* ── Reply Bar ── */
+.reply-bar {
+  padding: 0.5rem;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.reply-bar input {
+  flex: 1;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.95rem;
+  outline: none;
+}
+.reply-bar input:focus { border-color: var(--primary); }
+.reply-bar button {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.reply-bar button:disabled { opacity: 0.5; cursor: default; }
+
+/* ── SSE Status ── */
+.sse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-left: auto;
+}
+.sse-dot.connected { background: #22c55e; }
+.sse-dot.disconnected { background: #ef4444; }
+
+/* ── Desktop ── */
+@media (min-width: 640px) {
+  #app.active { flex-direction: row; }
+  #thread-list-panel { width: 320px; border-right: 1px solid var(--border); flex-shrink: 0; }
+  #thread-view-panel {
+    position: relative;
+    display: flex;
+    flex: 1;
+    z-index: auto;
+  }
+  #thread-view-panel .back-btn { display: none; }
+  .thread-view-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="login">
+  <div class="login-box">
+    <h2>Owner Inbox</h2>
+    <input type="password" id="token-input" placeholder="Admin token" autocomplete="off">
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div id="thread-list-panel">
+    <div class="thread-list-header">
+      Inbox <span class="sse-dot disconnected" id="sse-dot" title="SSE status"></span>
+    </div>
+    <div id="thread-list">
+      <div class="thread-empty">No conversations yet</div>
+    </div>
+  </div>
+
+  <div id="thread-view-panel">
+    <div class="thread-view-header">
+      <button class="back-btn" onclick="closeThread()">&larr;</button>
+      <span class="thread-view-phone" id="current-phone">Select a conversation</span>
+    </div>
+    <div id="messages"></div>
+    <div class="reply-bar" id="reply-bar" style="display:none">
+      <input type="text" id="reply-input" placeholder="Type a reply..." autocomplete="off">
+      <button onclick="sendReply()" id="send-btn" disabled>&#9654;</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '';
+let TOKEN = localStorage.getItem('inbox_token') || '';
+let currentPhone = null;
+let threads = [];
+let lastEventId = 0;
+let eventSource = null;
+
+// ── Login ──
+
+function doLogin() {
+  const input = document.getElementById('token-input');
+  const token = input.value.trim();
+  if (!token) return;
+  TOKEN = token;
+  localStorage.setItem('inbox_token', TOKEN);
+  verifyToken();
+}
+
+async function verifyToken() {
+  try {
+    const res = await apiFetch('/api/inbox/threads');
+    if (res.ok) {
+      document.getElementById('login').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      loadThreads();
+      connectSSE();
+    } else {
+      showLoginError('Invalid token');
+      TOKEN = '';
+      localStorage.removeItem('inbox_token');
+    }
+  } catch {
+    showLoginError('Connection error');
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  setTimeout(() => el.textContent = '', 3000);
+}
+
+function apiFetch(path, opts = {}) {
+  opts.headers = opts.headers || {};
+  opts.headers['Authorization'] = 'Bearer ' + TOKEN;
+  if (opts.body && !opts.headers['Content-Type']) {
+    opts.headers['Content-Type'] = 'application/json';
+  }
+  return fetch(API_BASE + path, opts);
+}
+
+// ── Threads ──
+
+async function loadThreads() {
+  try {
+    const res = await apiFetch('/api/inbox/threads');
+    if (!res.ok) return;
+    threads = await res.json();
+    renderThreads();
+  } catch(e) {
+    console.error('loadThreads:', e);
+  }
+}
+
+function renderThreads() {
+  const el = document.getElementById('thread-list');
+  if (threads.length === 0) {
+    el.innerHTML = '<div class="thread-empty">No conversations yet</div>';
+    return;
+  }
+  el.innerHTML = threads.map(t => {
+    const active = t.phone === currentPhone ? ' active' : '';
+    const initials = t.phone.slice(-2);
+    const badge = t.unread_count > 0 ? `<span class="thread-badge">${t.unread_count}</span>` : '';
+    const time = relativeTime(t.last_activity);
+    const preview = escapeHtml(truncate(t.last_message, 45));
+    return `<div class="thread-item${active}" onclick="openThread('${escapeAttr(t.phone)}')">
+      <div class="thread-avatar">${initials}</div>
+      <div class="thread-info">
+        <div class="thread-phone">${escapeHtml(t.phone)}</div>
+        <div class="thread-preview">${preview}</div>
+      </div>
+      <div class="thread-meta">
+        <span class="thread-time">${time}</span>
+        ${badge}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Thread View ──
+
+async function openThread(phone) {
+  currentPhone = phone;
+  document.getElementById('thread-view-panel').classList.add('active');
+  document.getElementById('current-phone').textContent = phone;
+  document.getElementById('reply-bar').style.display = 'flex';
+  document.getElementById('reply-input').focus();
+  renderThreads();
+
+  try {
+    const res = await apiFetch(`/api/inbox/thread/${encodeURIComponent(phone)}`);
+    if (!res.ok) return;
+    const events = await res.json();
+    renderMessages(events);
+
+    // Mark as read
+    apiFetch(`/api/inbox/thread/${encodeURIComponent(phone)}/read`, { method: 'POST' });
+    const thread = threads.find(t => t.phone === phone);
+    if (thread) { thread.unread_count = 0; renderThreads(); }
+  } catch(e) {
+    console.error('openThread:', e);
+  }
+}
+
+function closeThread() {
+  currentPhone = null;
+  document.getElementById('thread-view-panel').classList.remove('active');
+  document.getElementById('reply-bar').style.display = 'none';
+  renderThreads();
+}
+
+function renderMessages(events) {
+  const el = document.getElementById('messages');
+  el.innerHTML = events.map(e => {
+    if (e.kind === 'system') {
+      return `<div class="msg system">${escapeHtml(e.content)}</div>`;
+    }
+    const label = e.kind === 'ai_reply' ? 'AI' : e.kind === 'owner_reply' ? 'You' : '';
+    const labelHtml = label ? `<div class="msg-label">${label}</div>` : '';
+    const time = formatTime(e.created_at);
+    return `<div class="msg ${e.kind}">
+      ${labelHtml}
+      <div>${escapeHtml(e.content)}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendMessage(event) {
+  const el = document.getElementById('messages');
+  let html;
+  if (event.kind === 'system') {
+    html = `<div class="msg system">${escapeHtml(event.content)}</div>`;
+  } else {
+    const label = event.kind === 'ai_reply' ? 'AI' : event.kind === 'owner_reply' ? 'You' : '';
+    const labelHtml = label ? `<div class="msg-label">${label}</div>` : '';
+    const time = formatTime(event.created_at);
+    html = `<div class="msg ${event.kind}">
+      ${labelHtml}
+      <div>${escapeHtml(event.content)}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  }
+  el.insertAdjacentHTML('beforeend', html);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── Reply ──
+
+const replyInput = document.getElementById('reply-input');
+const sendBtn = document.getElementById('send-btn');
+
+replyInput.addEventListener('input', () => {
+  sendBtn.disabled = !replyInput.value.trim();
+});
+replyInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey && replyInput.value.trim()) {
+    e.preventDefault();
+    sendReply();
+  }
+});
+
+async function sendReply() {
+  if (!currentPhone || !replyInput.value.trim()) return;
+  const msg = replyInput.value.trim();
+  replyInput.value = '';
+  sendBtn.disabled = true;
+
+  try {
+    const res = await apiFetch('/api/inbox/reply', {
+      method: 'POST',
+      body: JSON.stringify({ phone: currentPhone, message: msg }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('reply error:', data.error || res.status);
+    }
+  } catch(e) {
+    console.error('sendReply:', e);
+  }
+}
+
+// ── SSE ──
+
+function connectSSE() {
+  if (eventSource) { eventSource.close(); }
+
+  const url = `${API_BASE}/api/inbox/events?token=${encodeURIComponent(TOKEN)}&last_id=${lastEventId}`;
+  eventSource = new EventSource(url);
+
+  eventSource.addEventListener('inbox_event', (e) => {
+    try {
+      const event = JSON.parse(e.data);
+      if (event.id > lastEventId) lastEventId = event.id;
+      handleInboxEvent(event);
+    } catch(err) {
+      console.error('SSE parse:', err);
+    }
+  });
+
+  eventSource.onopen = () => {
+    document.getElementById('sse-dot').className = 'sse-dot connected';
+  };
+
+  eventSource.onerror = () => {
+    document.getElementById('sse-dot').className = 'sse-dot disconnected';
+    eventSource.close();
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+function handleInboxEvent(event) {
+  // Update thread list
+  let thread = threads.find(t => t.phone === event.phone);
+  if (thread) {
+    thread.last_message = event.content;
+    thread.last_kind = event.kind;
+    thread.last_activity = event.created_at;
+    if (event.phone !== currentPhone) {
+      thread.unread_count = (thread.unread_count || 0) + 1;
+    }
+    // Move to top
+    threads = [thread, ...threads.filter(t => t.phone !== event.phone)];
+  } else {
+    threads.unshift({
+      phone: event.phone,
+      last_message: event.content,
+      last_kind: event.kind,
+      last_activity: event.created_at,
+      unread_count: event.phone === currentPhone ? 0 : 1,
+    });
+  }
+  renderThreads();
+
+  // If viewing this thread, append message and mark read
+  if (event.phone === currentPhone) {
+    appendMessage(event);
+    apiFetch(`/api/inbox/thread/${encodeURIComponent(event.phone)}/read`, { method: 'POST' });
+  }
+}
+
+// ── Helpers ──
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+function relativeTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'Z');
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return Math.floor(diff / 86400) + 'd';
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'Z');
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Init ──
+document.getElementById('token-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') doLogin();
+});
+
+if (TOKEN) verifyToken();
+
+// ── PWA Service Worker ──
+if ('serviceWorker' in navigator) {
+  const swCode = `self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+self.addEventListener('fetch', e => {});`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: '/inbox' }).catch(() => {});
+}
+</script>
+</body>
+</html>

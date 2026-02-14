@@ -8,8 +8,9 @@ use crate::models::{
     Intent, PendingBooking,
 };
 use crate::services::ai::intent::extract_intent;
+use crate::services::inbox::record_inbox_event;
 use crate::services::scheduling::validate_booking_time;
-use crate::state::AppState;
+use crate::state::{AppState, DevNotification, DevNotificationKind};
 
 pub async fn process_message(
     state: &Arc<AppState>,
@@ -41,8 +42,13 @@ pub async fn process_message(
 
     // Forward customer message to owner via dev notification queue
     if let Ok(mut notifications) = state.dev_notifications.lock() {
-        notifications.push(format!("[{}] {}", from_phone, message));
+        notifications.push(DevNotification {
+            phone: Some(from_phone.to_string()),
+            kind: DevNotificationKind::CustomerMessage,
+            content: message.to_string(),
+        });
     }
+    record_inbox_event(state, from_phone, "customer_message", message);
 
     // Build business context
     let mut business_context = format!(
@@ -220,7 +226,7 @@ pub async fn process_message(
                         .unwrap_or("TBD"),
                     from_phone,
                 );
-                notify_owner(state, &owner_msg).await;
+                notify_owner(state, &owner_msg, Some(from_phone)).await;
 
                 // Reset conversation
                 conv.state = ConversationState::Idle;
@@ -263,7 +269,7 @@ pub async fn process_message(
             };
 
             if let Some(msg) = &owner_notification {
-                notify_owner(state, msg).await;
+                notify_owner(state, msg, Some(from_phone)).await;
             }
 
             conv.state = ConversationState::Idle;
@@ -347,8 +353,13 @@ pub async fn process_message(
 
     // Forward AI reply to owner via dev notification queue
     if let Ok(mut notifications) = state.dev_notifications.lock() {
-        notifications.push(format!("AI → [{}]: {}", from_phone, reply));
+        notifications.push(DevNotification {
+            phone: Some(from_phone.to_string()),
+            kind: DevNotificationKind::AiReply,
+            content: reply.clone(),
+        });
     }
+    record_inbox_event(state, from_phone, "ai_reply", &reply);
 
     // Update timestamps
     let now = Utc::now().naive_utc();
@@ -362,6 +373,21 @@ pub async fn process_message(
     }
 
     Ok(reply)
+}
+
+pub fn inject_owner_reply(state: &Arc<AppState>, to_phone: &str, message: &str) -> anyhow::Result<()> {
+    let db = state.db.lock().unwrap();
+    let mut conv = queries::get_conversation(&db, to_phone)?
+        .unwrap_or_else(|| new_conversation(to_phone));
+    conv.messages.push(ConversationMessage {
+        role: "assistant".to_string(),
+        content: message.to_string(),
+    });
+    let now = Utc::now().naive_utc();
+    conv.last_activity = now;
+    conv.expires_at = now + Duration::minutes(30);
+    queries::save_conversation(&db, &conv)?;
+    Ok(())
 }
 
 fn new_conversation(phone: &str) -> Conversation {
@@ -438,8 +464,13 @@ async fn finish_conversation(
     });
     // Forward AI reply to owner via dev notification queue
     if let Ok(mut notifications) = state.dev_notifications.lock() {
-        notifications.push(format!("AI → [{}]: {}", conv.phone, reply));
+        notifications.push(DevNotification {
+            phone: Some(conv.phone.clone()),
+            kind: DevNotificationKind::AiReply,
+            content: reply.to_string(),
+        });
     }
+    record_inbox_event(state, &conv.phone, "ai_reply", reply);
     let now = Utc::now().naive_utc();
     conv.last_activity = now;
     conv.expires_at = now + Duration::minutes(30);
@@ -450,10 +481,17 @@ async fn finish_conversation(
     Ok(reply.to_string())
 }
 
-async fn notify_owner(state: &Arc<AppState>, message: &str) {
+async fn notify_owner(state: &Arc<AppState>, message: &str, phone: Option<&str>) {
     // Always push to dev notification queue
     if let Ok(mut notifications) = state.dev_notifications.lock() {
-        notifications.push(message.to_string());
+        notifications.push(DevNotification {
+            phone: phone.map(|p| p.to_string()),
+            kind: DevNotificationKind::System,
+            content: message.to_string(),
+        });
+    }
+    if let Some(p) = phone {
+        record_inbox_event(state, p, "system", message);
     }
 
     if state.config.owner_phone.is_empty() {
