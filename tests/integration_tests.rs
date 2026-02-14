@@ -72,6 +72,9 @@ fn test_config() -> AppConfig {
         twilio_auth_token: "".to_string(), // empty = skip signature validation
         twilio_phone_number: "+15551234567".to_string(),
         owner_phone: "+15559999999".to_string(),
+        llm_provider: "ollama".to_string(),
+        groq_api_key: "".to_string(),
+        groq_model: "llama-3.3-70b-versatile".to_string(),
     }
 }
 
@@ -84,6 +87,7 @@ fn test_state() -> Arc<AppState> {
         llm: Box::new(MockLlm),
         messaging: Box::new(MockMessaging::new()),
         paused: AtomicBool::new(false),
+        dev_notifications: Mutex::new(Vec::new()),
     })
 }
 
@@ -100,6 +104,7 @@ fn test_state_with_sent() -> (Arc<AppState>, Arc<Mutex<Vec<(String, String)>>>) 
         llm: Box::new(MockLlm),
         messaging: Box::new(messaging),
         paused: AtomicBool::new(false),
+        dev_notifications: Mutex::new(Vec::new()),
     });
     (state, sent)
 }

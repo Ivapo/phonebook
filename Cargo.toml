@@ -21,6 +21,7 @@ async-trait = "0.1"
 hmac = "0.12"
 sha1 = "0.10"
 base64 = "0.22"
+dotenvy = "0.15.7"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

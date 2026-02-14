@@ -290,7 +290,26 @@ async function sendMsg(panel) {
     });
     const data = await res.json();
     if (data.success) {
-      appendMsg(panel, data.reply, 'received');
+      if (panel === 'customer') {
+        // Show AI reply in customer panel
+        if (data.reply) appendMsg('customer', data.reply, 'received');
+        // Show forwarded messages + notifications in owner panel
+        if (data.owner_notifications) {
+          data.owner_notifications.forEach(n => appendMsg('owner', n, 'received'));
+        }
+      } else {
+        // Owner panel
+        if (data.customer_delivery) {
+          // Direct reply to customer — show in customer panel
+          appendMsg('customer', 'Owner: ' + data.customer_delivery, 'received');
+        } else if (data.reply) {
+          // Admin command response
+          appendMsg('owner', data.reply, 'received');
+        }
+        if (data.owner_notifications) {
+          data.owner_notifications.forEach(n => appendMsg('owner', n, 'received'));
+        }
+      }
     } else {
       appendMsg(panel, 'Error: ' + (data.error || 'Unknown error'), 'error');
     }

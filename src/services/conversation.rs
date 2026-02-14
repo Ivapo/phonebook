@@ -39,6 +39,11 @@ pub async fn process_message(
         content: message.to_string(),
     });
 
+    // Forward customer message to owner via dev notification queue
+    if let Ok(mut notifications) = state.dev_notifications.lock() {
+        notifications.push(format!("[{}] {}", from_phone, message));
+    }
+
     // Build business context
     let mut business_context = format!(
         "Business phone: {}. Owner phone: {}.",
@@ -437,6 +442,11 @@ async fn finish_conversation(
 }
 
 async fn notify_owner(state: &Arc<AppState>, message: &str) {
+    // Always push to dev notification queue
+    if let Ok(mut notifications) = state.dev_notifications.lock() {
+        notifications.push(message.to_string());
+    }
+
     if state.config.owner_phone.is_empty() {
         tracing::warn!("owner_phone not configured, skipping notification");
         return;

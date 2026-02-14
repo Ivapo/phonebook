@@ -13,4 +13,5 @@ pub struct AppState {
     pub llm: Box<dyn LlmProvider>,
     pub messaging: Box<dyn MessagingProvider>,
     pub paused: AtomicBool,
+    pub dev_notifications: Mutex<Vec<String>>,
 }

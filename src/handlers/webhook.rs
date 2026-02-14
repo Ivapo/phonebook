@@ -254,6 +254,11 @@ pub async fn handle_admin_command(state: &Arc<AppState>, body: &str) -> String {
 }
 
 async fn notify_owner(state: &Arc<AppState>, message: &str) {
+    // Always push to dev notification queue
+    if let Ok(mut notifications) = state.dev_notifications.lock() {
+        notifications.push(message.to_string());
+    }
+
     if state.config.owner_phone.is_empty() {
         tracing::warn!("owner_phone not configured, skipping notification");
         return;

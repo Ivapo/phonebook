@@ -10,6 +10,9 @@ pub struct AppConfig {
     pub twilio_auth_token: String,
     pub twilio_phone_number: String,
     pub owner_phone: String,
+    pub llm_provider: String,
+    pub groq_api_key: String,
+    pub groq_model: String,
 }
 
 impl AppConfig {
@@ -27,6 +30,10 @@ impl AppConfig {
             twilio_auth_token: env::var("TWILIO_AUTH_TOKEN").unwrap_or_default(),
             twilio_phone_number: env::var("TWILIO_PHONE_NUMBER").unwrap_or_default(),
             owner_phone: env::var("OWNER_PHONE").unwrap_or_default(),
+            llm_provider: env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".to_string()),
+            groq_api_key: env::var("GROQ_API_KEY").unwrap_or_default(),
+            groq_model: env::var("GROQ_MODEL")
+                .unwrap_or_else(|_| "llama-3.3-70b-versatile".to_string()),
         }
     }
 }

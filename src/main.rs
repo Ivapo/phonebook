@@ -8,12 +8,16 @@ use tracing_subscriber::EnvFilter;
 use phonebook::config::AppConfig;
 use phonebook::db;
 use phonebook::handlers;
+use phonebook::services::ai::groq::GroqProvider;
 use phonebook::services::ai::ollama::OllamaProvider;
+use phonebook::services::ai::LlmProvider;
 use phonebook::services::messaging::twilio::TwilioSmsProvider;
 use phonebook::state::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _ = dotenvy::dotenv();
+
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
@@ -22,7 +26,17 @@ async fn main() -> anyhow::Result<()> {
 
     let conn = db::init_db(&config.database_url)?;
 
-    let llm = OllamaProvider::new(config.ollama_url.clone(), "llama3.2".to_string());
+    let llm: Box<dyn LlmProvider> = match config.llm_provider.as_str() {
+        "groq" => {
+            anyhow::ensure!(!config.groq_api_key.is_empty(), "GROQ_API_KEY must be set when LLM_PROVIDER=groq");
+            tracing::info!("using Groq LLM provider (model: {})", config.groq_model);
+            Box::new(GroqProvider::new(config.groq_api_key.clone(), config.groq_model.clone()))
+        }
+        _ => {
+            tracing::info!("using Ollama LLM provider (url: {})", config.ollama_url);
+            Box::new(OllamaProvider::new(config.ollama_url.clone(), "llama3.2".to_string()))
+        }
+    };
     let messaging = TwilioSmsProvider::new(
         config.twilio_account_sid.clone(),
         config.twilio_auth_token.clone(),
@@ -32,9 +46,10 @@ async fn main() -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         db: Arc::new(Mutex::new(conn)),
         config: config.clone(),
-        llm: Box::new(llm),
+        llm,
         messaging: Box::new(messaging),
         paused: AtomicBool::new(false),
+        dev_notifications: Mutex::new(Vec::new()),
     });
 
     let app = Router::new()

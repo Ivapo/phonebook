@@ -1,3 +1,4 @@
+pub mod groq;
 pub mod intent;
 pub mod ollama;
 
