@@ -59,7 +59,8 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .route("/health", get(handlers::health::health))
         .route("/webhook/sms", post(handlers::webhook::sms_webhook))
-        .route("/admin", get(handlers::admin::admin_page))
+        .route("/app", get(handlers::admin::app_page))
+        .route("/admin", get(handlers::admin::redirect_to_app))
         .route("/api/admin/status", get(handlers::admin::get_status))
         .route("/api/admin/bookings", get(handlers::admin::get_bookings))
         .route(
@@ -83,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/dev", get(handlers::dev::dev_page))
         .route("/api/dev/config", get(handlers::dev::dev_config))
         .route("/api/dev/message", post(handlers::dev::send_message))
-        .route("/inbox", get(handlers::inbox::inbox_page))
+        .route("/inbox", get(handlers::admin::redirect_to_app))
         .route("/api/inbox/threads", get(handlers::inbox::get_threads))
         .route(
             "/api/inbox/thread/:phone",

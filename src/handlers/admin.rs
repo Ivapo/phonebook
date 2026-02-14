@@ -7,14 +7,20 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
+use axum::response::Redirect;
+
 use crate::db::queries;
 use crate::models::BookingStatus;
 use crate::state::AppState;
 
-static ADMIN_HTML: &str = include_str!("../web/admin.html");
+static APP_HTML: &str = include_str!("../web/app.html");
 
-pub async fn admin_page() -> Html<&'static str> {
-    Html(ADMIN_HTML)
+pub async fn app_page() -> Html<&'static str> {
+    Html(APP_HTML)
+}
+
+pub async fn redirect_to_app() -> Redirect {
+    Redirect::permanent("/app")
 }
 
 #[allow(clippy::result_large_err)]

@@ -136,7 +136,8 @@ fn test_app(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(handlers::health::health))
         .route("/webhook/sms", post(handlers::webhook::sms_webhook))
-        .route("/admin", get(handlers::admin::admin_page))
+        .route("/app", get(handlers::admin::app_page))
+        .route("/admin", get(handlers::admin::redirect_to_app))
         .route("/api/admin/status", get(handlers::admin::get_status))
         .route("/api/admin/bookings", get(handlers::admin::get_bookings))
         .route(
@@ -1013,17 +1014,17 @@ async fn test_non_owner_hash_not_admin() {
     assert_eq!(messages[0].0, "+15550001111", "reply should go to sender");
 }
 
-// ── Admin Page ──
+// ── App Page ──
 
 #[tokio::test]
-async fn test_admin_page_serves_html() {
+async fn test_app_page_serves_html() {
     let state = test_state();
     let app = test_app(state);
 
     let res = app
         .oneshot(
             Request::builder()
-                .uri("/admin")
+                .uri("/app")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1037,4 +1038,23 @@ async fn test_admin_page_serves_html() {
     let text = String::from_utf8(body.to_vec()).unwrap();
     assert!(text.contains("<!DOCTYPE html>"));
     assert!(text.contains("Booking Agent"));
+}
+
+#[tokio::test]
+async fn test_admin_redirects_to_app() {
+    let state = test_state();
+    let app = test_app(state);
+
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/admin")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(res.status(), StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(res.headers().get("location").unwrap(), "/app");
 }

@@ -5,7 +5,7 @@ use std::time::Duration;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::sse::{Event, Sse};
-use axum::response::{Html, IntoResponse, Response};
+use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 use tokio_stream::wrappers::BroadcastStream;
@@ -15,12 +15,6 @@ use crate::db::queries;
 use crate::services::conversation;
 use crate::services::inbox::record_inbox_event;
 use crate::state::AppState;
-
-static INBOX_HTML: &str = include_str!("../web/inbox.html");
-
-pub async fn inbox_page() -> Html<&'static str> {
-    Html(INBOX_HTML)
-}
 
 #[allow(clippy::result_large_err)]
 fn check_auth(headers: &HeaderMap, expected_token: &str) -> Result<(), Response> {
