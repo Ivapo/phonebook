@@ -2,10 +2,13 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use axum::extract::State;
-use axum::http::header;
+use axum::http::{header, HeaderMap};
 use axum::response::{IntoResponse, Response};
 use axum::Form;
+use base64::Engine;
+use hmac::{Hmac, Mac};
 use serde::Deserialize;
+use sha1::Sha1;
 
 use crate::db::queries;
 use crate::services::conversation;
@@ -27,14 +30,91 @@ pub struct TwilioWebhookForm {
     pub message_sid: Option<String>,
 }
 
+fn validate_twilio_signature(
+    auth_token: &str,
+    signature: &str,
+    url: &str,
+    params: &[(&str, &str)],
+) -> bool {
+    // Build the data to sign: URL + sorted params concatenated
+    let mut data = url.to_string();
+    let mut sorted_params = params.to_vec();
+    sorted_params.sort_by(|a, b| a.0.cmp(b.0));
+    for (key, value) in &sorted_params {
+        data.push_str(key);
+        data.push_str(value);
+    }
+
+    let mut mac = match Hmac::<Sha1>::new_from_slice(auth_token.as_bytes()) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    mac.update(data.as_bytes());
+    let result = mac.finalize().into_bytes();
+    let expected = base64::engine::general_purpose::STANDARD.encode(result);
+
+    expected == signature
+}
+
 pub async fn sms_webhook(
     State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
     Form(form): Form<TwilioWebhookForm>,
 ) -> Response {
     let from = form.from.trim().to_string();
     let body = form.body.trim().to_string();
 
     tracing::info!(from = %from, body = %body, "incoming SMS");
+
+    // Validate Twilio signature (skip if auth token is empty — dev mode)
+    if !state.config.twilio_auth_token.is_empty() {
+        let signature = headers
+            .get("x-twilio-signature")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+
+        if signature.is_empty() {
+            tracing::warn!("missing X-Twilio-Signature header");
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                "Missing signature",
+            )
+                .into_response();
+        }
+
+        // Reconstruct webhook URL — use X-Forwarded-Proto/Host if behind proxy
+        let proto = headers
+            .get("x-forwarded-proto")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("https");
+        let host = headers
+            .get("x-forwarded-host")
+            .or_else(|| headers.get("host"))
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("localhost");
+        let url = format!("{proto}://{host}/webhook/sms");
+
+        let params = [
+            ("From", from.as_str()),
+            ("To", form.to.as_str()),
+            ("Body", body.as_str()),
+            ("MessageSid", form.message_sid.as_deref().unwrap_or("")),
+        ];
+
+        if !validate_twilio_signature(
+            &state.config.twilio_auth_token,
+            signature,
+            &url,
+            &params,
+        ) {
+            tracing::warn!("invalid Twilio signature");
+            return (
+                axum::http::StatusCode::FORBIDDEN,
+                "Invalid signature",
+            )
+                .into_response();
+        }
+    }
 
     // 1. Check blocked
     {

@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Agent - Admin</title>
+<style>
+:root {
+  --bg: #f8f9fa;
+  --card: #fff;
+  --border: #dee2e6;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --success: #16a34a;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --radius: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.login-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%; max-width: 360px;
+  text-align: center;
+}
+
+.login-box h2 { margin-bottom: 1rem; }
+
+.login-box input {
+  width: 100%; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.login-box .error { color: var(--danger); font-size: 0.875rem; margin-bottom: 0.5rem; }
+
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+header h1 { font-size: 1.25rem; }
+header .logout { cursor: pointer; color: var(--text-muted); background: none; border: none; font-size: 0.875rem; }
+header .logout:hover { color: var(--danger); }
+
+.tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--card);
+  padding: 0 1.5rem;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  border: none; background: none;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+.tab:hover { color: var(--text); }
+
+.content { max-width: 960px; margin: 1.5rem auto; padding: 0 1rem; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+.stat { text-align: center; }
+.stat .value { font-size: 2rem; font-weight: 700; }
+.stat .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.badge {
+  display: inline-block; padding: 0.125rem 0.5rem;
+  border-radius: 999px; font-size: 0.75rem; font-weight: 600;
+}
+.badge-active { background: #dcfce7; color: #166534; }
+.badge-paused { background: #fef3c7; color: #92400e; }
+.badge-confirmed { background: #dbeafe; color: #1e40af; }
+.badge-pending { background: #fef3c7; color: #92400e; }
+.badge-cancelled { background: #fee2e2; color: #991b1b; }
+.badge-auto { background: #f3e8ff; color: #6b21a8; }
+
+btn, .btn {
+  display: inline-block; padding: 0.5rem 1rem;
+  border: none; border-radius: var(--radius);
+  font-size: 0.875rem; cursor: pointer;
+  font-weight: 500; text-decoration: none;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: var(--danger-hover); }
+.btn-sm { padding: 0.25rem 0.75rem; font-size: 0.8rem; }
+
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+th { font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.25rem; }
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+.form-group textarea { min-height: 80px; resize: vertical; }
+
+.inline-form { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+.inline-form input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.875rem; }
+
+.empty { text-align: center; padding: 2rem; color: var(--text-muted); }
+
+.toast {
+  position: fixed; bottom: 1rem; right: 1rem;
+  background: #1f2937; color: #fff;
+  padding: 0.75rem 1.25rem; border-radius: var(--radius);
+  font-size: 0.875rem; z-index: 200;
+  opacity: 0; transition: opacity 0.3s;
+}
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h2>Admin Login</h2>
+    <div class="error" id="loginError"></div>
+    <input type="password" id="tokenInput" placeholder="Admin token" autofocus>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- App -->
+<header id="appHeader" style="display:none">
+  <h1>Booking Agent</h1>
+  <button class="logout" onclick="doLogout()">Sign out</button>
+</header>
+
+<div class="tabs" id="appTabs" style="display:none">
+  <button class="tab active" data-tab="dashboard">Dashboard</button>
+  <button class="tab" data-tab="bookings">Bookings</button>
+  <button class="tab" data-tab="blocked">Blocked Numbers</button>
+  <button class="tab" data-tab="settings">Settings</button>
+</div>
+
+<div class="content" id="appContent" style="display:none">
+
+  <!-- Dashboard -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="stats">
+      <div class="card stat">
+        <div class="value" id="statStatus">--</div>
+        <div class="label">Agent Status</div>
+      </div>
+      <div class="card stat">
+        <div class="value" id="statMessages">--</div>
+        <div class="label">Messages this hour</div>
+      </div>
+      <div class="card stat">
+        <div class="value" id="statBlocked">--</div>
+        <div class="label">Blocked numbers</div>
+      </div>
+      <div class="card stat">
+        <div class="value" id="statBookings">--</div>
+        <div class="label">Upcoming bookings</div>
+      </div>
+    </div>
+    <div class="card">
+      <button class="btn btn-primary" id="togglePauseBtn" onclick="togglePause()">Loading...</button>
+    </div>
+  </div>
+
+  <!-- Bookings -->
+  <div class="panel" id="panel-bookings">
+    <div style="margin-bottom:1rem; display:flex; gap:0.5rem; align-items:center">
+      <label style="font-size:0.875rem; font-weight:500">Filter:</label>
+      <select id="bookingFilter" onchange="loadBookings()" style="padding:0.4rem 0.5rem; border:1px solid var(--border); border-radius:var(--radius); font-size:0.875rem">
+        <option value="">All</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="pending">Pending</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Phone</th><th>Date/Time</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="bookingsBody">
+          <tr><td colspan="5" class="empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Blocked Numbers -->
+  <div class="panel" id="panel-blocked">
+    <div class="inline-form">
+      <input type="tel" id="blockPhoneInput" placeholder="+1234567890">
+      <button class="btn btn-danger" onclick="doBlock()">Block</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Phone</th><th>Reason</th><th>Type</th><th></th></tr>
+        </thead>
+        <tbody id="blockedBody">
+          <tr><td colspan="4" class="empty">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <div class="form-group">
+        <label>Business Name</label>
+        <input type="text" id="settBusinessName">
+      </div>
+      <div class="form-group">
+        <label>Owner Name</label>
+        <input type="text" id="settOwnerName">
+      </div>
+      <div class="form-group">
+        <label>Owner Phone</label>
+        <input type="tel" id="settOwnerPhone" disabled>
+      </div>
+      <div class="form-group">
+        <label>Twilio Number</label>
+        <input type="tel" id="settTwilioNumber" disabled>
+      </div>
+      <div class="form-group">
+        <label>Timezone</label>
+        <input type="text" id="settTimezone" placeholder="e.g. America/New_York">
+      </div>
+      <div class="form-group">
+        <label>Availability</label>
+        <textarea id="settAvailability" placeholder="e.g. Mon-Fri 9am-5pm"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api/admin';
+let token = localStorage.getItem('admin_token') || '';
+let isPaused = false;
+
+function headers() {
+  return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
+}
+
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, { headers: headers(), ...opts });
+  if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Request failed'); }
+  return res.json();
+}
+
+function toast(msg, duration = 3000) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), duration);
+}
+
+// Auth
+async function doLogin() {
+  token = document.getElementById('tokenInput').value.trim();
+  if (!token) return;
+  try {
+    await apiFetch('/status');
+    localStorage.setItem('admin_token', token);
+    showApp();
+  } catch {
+    document.getElementById('loginError').textContent = 'Invalid token';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('admin_token');
+  token = '';
+  location.reload();
+}
+
+document.getElementById('tokenInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function showApp() {
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('appHeader').style.display = '';
+  document.getElementById('appTabs').style.display = '';
+  document.getElementById('appContent').style.display = '';
+  loadDashboard();
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'dashboard') loadDashboard();
+    if (tab.dataset.tab === 'bookings') loadBookings();
+    if (tab.dataset.tab === 'blocked') loadBlocked();
+    if (tab.dataset.tab === 'settings') loadSettings();
+  });
+});
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    const data = await apiFetch('/status');
+    isPaused = data.paused;
+    document.getElementById('statStatus').innerHTML =
+      data.paused
+        ? '<span class="badge badge-paused">PAUSED</span>'
+        : '<span class="badge badge-active">ACTIVE</span>';
+    document.getElementById('statMessages').textContent = data.messages_this_hour;
+    document.getElementById('statBlocked').textContent = data.blocked_count;
+    document.getElementById('statBookings').textContent = data.upcoming_bookings_count;
+    const btn = document.getElementById('togglePauseBtn');
+    btn.textContent = data.paused ? 'Resume Agent' : 'Pause Agent';
+    btn.className = data.paused ? 'btn btn-primary' : 'btn btn-danger';
+  } catch (e) { toast('Failed to load dashboard: ' + e.message); }
+}
+
+async function togglePause() {
+  try {
+    await apiFetch(isPaused ? '/resume' : '/pause', { method: 'POST' });
+    toast(isPaused ? 'Agent resumed' : 'Agent paused');
+    loadDashboard();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// Bookings
+async function loadBookings() {
+  const filter = document.getElementById('bookingFilter').value;
+  const qs = filter ? '?status=' + filter : '';
+  try {
+    const bookings = await apiFetch('/bookings' + qs);
+    const tbody = document.getElementById('bookingsBody');
+    if (!bookings.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No bookings found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = bookings.map(b => {
+      const dt = new Date(b.date_time.replace(' ', 'T') + 'Z');
+      const dateStr = dt.toLocaleString();
+      const badge = b.status === 'confirmed' ? 'badge-confirmed' : b.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
+      const cancelBtn = b.status !== 'cancelled'
+        ? '<button class="btn btn-danger btn-sm" onclick="cancelBooking(\'' + b.id + '\')">Cancel</button>'
+        : '';
+      return '<tr><td>' + (b.customer_name || '-') + '</td><td>' + b.customer_phone +
+        '</td><td>' + dateStr + '</td><td><span class="badge ' + badge + '">' + b.status +
+        '</span></td><td>' + cancelBtn + '</td></tr>';
+    }).join('');
+  } catch (e) { toast('Failed to load bookings: ' + e.message); }
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Cancel this booking?')) return;
+  try {
+    await apiFetch('/bookings/' + id + '/cancel', { method: 'POST' });
+    toast('Booking cancelled');
+    loadBookings();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// Blocked
+async function loadBlocked() {
+  try {
+    const blocked = await apiFetch('/blocked');
+    const tbody = document.getElementById('blockedBody');
+    if (!blocked.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No blocked numbers</td></tr>';
+      return;
+    }
+    tbody.innerHTML = blocked.map(b => {
+      const typeBadge = b.is_auto ? '<span class="badge badge-auto">auto</span>' : '<span class="badge">manual</span>';
+      return '<tr><td>' + b.phone + '</td><td>' + (b.reason || '-') + '</td><td>' + typeBadge +
+        '</td><td><button class="btn btn-primary btn-sm" onclick="doUnblock(\'' + b.phone + '\')">Unblock</button></td></tr>';
+    }).join('');
+  } catch (e) { toast('Failed to load blocked numbers: ' + e.message); }
+}
+
+async function doBlock() {
+  const phone = document.getElementById('blockPhoneInput').value.trim();
+  if (!phone) return;
+  try {
+    await apiFetch('/block', {
+      method: 'POST',
+      body: JSON.stringify({ phone, reason: 'blocked via admin UI' })
+    });
+    document.getElementById('blockPhoneInput').value = '';
+    toast('Number blocked');
+    loadBlocked();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+async function doUnblock(phone) {
+  try {
+    await apiFetch('/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ phone })
+    });
+    toast('Number unblocked');
+    loadBlocked();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// Settings
+async function loadSettings() {
+  try {
+    const s = await apiFetch('/settings');
+    document.getElementById('settBusinessName').value = s.business_name || '';
+    document.getElementById('settOwnerName').value = s.owner_name || '';
+    document.getElementById('settOwnerPhone').value = s.owner_phone || '';
+    document.getElementById('settTwilioNumber').value = s.twilio_phone_number || '';
+    document.getElementById('settTimezone').value = s.timezone || '';
+    document.getElementById('settAvailability').value = s.availability || '';
+  } catch (e) { toast('Failed to load settings: ' + e.message); }
+}
+
+async function saveSettings() {
+  try {
+    await apiFetch('/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        business_name: document.getElementById('settBusinessName').value,
+        owner_name: document.getElementById('settOwnerName').value,
+        timezone: document.getElementById('settTimezone').value,
+        availability: document.getElementById('settAvailability').value
+      })
+    });
+    toast('Settings saved');
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+// Init
+if (token) {
+  apiFetch('/status').then(() => showApp()).catch(() => {
+    localStorage.removeItem('admin_token');
+    token = '';
+  });
+}
+</script>
+</body>
+</html>

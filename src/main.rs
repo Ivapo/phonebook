@@ -1,11 +1,3 @@
-mod config;
-mod db;
-mod errors;
-mod handlers;
-mod models;
-mod services;
-mod state;
-
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
@@ -13,10 +5,12 @@ use axum::routing::{get, post};
 use axum::Router;
 use tracing_subscriber::EnvFilter;
 
-use config::AppConfig;
-use services::ai::ollama::OllamaProvider;
-use services::messaging::twilio::TwilioSmsProvider;
-use state::AppState;
+use phonebook::config::AppConfig;
+use phonebook::db;
+use phonebook::handlers;
+use phonebook::services::ai::ollama::OllamaProvider;
+use phonebook::services::messaging::twilio::TwilioSmsProvider;
+use phonebook::state::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,6 +41,26 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(handlers::health::health))
         .route("/webhook/sms", post(handlers::webhook::sms_webhook))
         .route("/admin", get(handlers::admin::admin_page))
+        .route("/api/admin/status", get(handlers::admin::get_status))
+        .route("/api/admin/bookings", get(handlers::admin::get_bookings))
+        .route(
+            "/api/admin/bookings/:id/cancel",
+            post(handlers::admin::cancel_booking),
+        )
+        .route("/api/admin/blocked", get(handlers::admin::get_blocked))
+        .route("/api/admin/block", post(handlers::admin::block_number))
+        .route("/api/admin/unblock", post(handlers::admin::unblock_number))
+        .route("/api/admin/pause", post(handlers::admin::pause_agent))
+        .route("/api/admin/resume", post(handlers::admin::resume_agent))
+        .route("/api/admin/settings", get(handlers::admin::get_settings))
+        .route(
+            "/api/admin/settings",
+            post(handlers::admin::update_settings),
+        )
+        .route(
+            "/calendar/:booking_id",
+            get(handlers::calendar::download_ics),
+        )
         .with_state(state);
 
     let addr = format!("0.0.0.0:{}", config.port);

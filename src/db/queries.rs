@@ -182,6 +182,92 @@ pub fn update_booking_status(
     Ok(count > 0)
 }
 
+pub fn get_all_bookings(
+    conn: &Connection,
+    status_filter: Option<&str>,
+    limit: i64,
+) -> anyhow::Result<Vec<Booking>> {
+    let (sql, params_vec): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = match status_filter {
+        Some(status) => (
+            "SELECT id, customer_phone, customer_name, date_time, duration_minutes, status, notes, created_at, updated_at \
+             FROM bookings WHERE status = ?1 ORDER BY date_time DESC LIMIT ?2"
+                .to_string(),
+            vec![
+                Box::new(status.to_string()) as Box<dyn rusqlite::types::ToSql>,
+                Box::new(limit),
+            ],
+        ),
+        None => (
+            "SELECT id, customer_phone, customer_name, date_time, duration_minutes, status, notes, created_at, updated_at \
+             FROM bookings ORDER BY date_time DESC LIMIT ?1"
+                .to_string(),
+            vec![Box::new(limit) as Box<dyn rusqlite::types::ToSql>],
+        ),
+    };
+
+    let mut stmt = conn.prepare(&sql)?;
+    let params_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt.query_map(params_refs.as_slice(), |row| Ok(parse_booking_row(row)))?;
+
+    let mut bookings = vec![];
+    for row in rows {
+        bookings.push(row??);
+    }
+    Ok(bookings)
+}
+
+pub fn get_booking_by_id(conn: &Connection, id: &str) -> anyhow::Result<Option<Booking>> {
+    let result = conn.query_row(
+        "SELECT id, customer_phone, customer_name, date_time, duration_minutes, status, notes, created_at, updated_at \
+         FROM bookings WHERE id = ?1",
+        params![id],
+        |row| Ok(parse_booking_row(row)),
+    );
+
+    match result {
+        Ok(booking) => Ok(Some(booking?)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e.into()),
+    }
+}
+
+pub fn get_dashboard_stats(conn: &Connection) -> anyhow::Result<DashboardStats> {
+    let now = Utc::now().naive_utc().format("%Y-%m-%d %H:%M:%S").to_string();
+    let window = current_hour_window();
+
+    let messages_this_hour: i64 = conn
+        .query_row(
+            "SELECT COALESCE(SUM(message_count), 0) FROM rate_limits WHERE window_start = ?1",
+            params![window],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let blocked_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM blocked_numbers", [], |row| row.get(0))
+        .unwrap_or(0);
+
+    let upcoming_bookings_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM bookings WHERE date_time > ?1 AND status = 'confirmed'",
+            params![now],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    Ok(DashboardStats {
+        messages_this_hour,
+        blocked_count,
+        upcoming_bookings_count,
+    })
+}
+
+pub struct DashboardStats {
+    pub messages_this_hour: i64,
+    pub blocked_count: i64,
+    pub upcoming_bookings_count: i64,
+}
+
 fn parse_booking_row(row: &rusqlite::Row) -> anyhow::Result<Booking> {
     let id: String = row.get(0)?;
     let customer_phone: String = row.get(1)?;

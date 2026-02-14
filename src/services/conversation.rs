@@ -132,7 +132,15 @@ pub async fn process_message(
         (ConversationState::Confirming, Intent::Confirm) => {
             if let Some(ref pending) = conv.pending_booking {
                 let booking = create_booking_from_pending(from_phone, pending);
-                let reply = extracted.message_to_customer.clone();
+                let ics_link = format!(
+                    "/calendar/{}.ics",
+                    booking.id
+                );
+                let reply = format!(
+                    "{}\n\nAdd to calendar: {}",
+                    extracted.message_to_customer,
+                    ics_link,
+                );
 
                 // Save booking to DB
                 {
