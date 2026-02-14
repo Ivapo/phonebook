@@ -87,6 +87,40 @@ fn test_state() -> Arc<AppState> {
     })
 }
 
+fn test_state_with_sent() -> (Arc<AppState>, Arc<Mutex<Vec<(String, String)>>>) {
+    let config = test_config();
+    let conn = db::init_db(":memory:").unwrap();
+    let sent = Arc::new(Mutex::new(vec![]));
+    let messaging = MockMessaging {
+        sent: Arc::clone(&sent),
+    };
+    let state = Arc::new(AppState {
+        db: Arc::new(Mutex::new(conn)),
+        config,
+        llm: Box::new(MockLlm),
+        messaging: Box::new(messaging),
+        paused: AtomicBool::new(false),
+    });
+    (state, sent)
+}
+
+/// Build a POST to /webhook/sms from the owner phone number.
+fn owner_sms_request(body: &str) -> Request<Body> {
+    let encoded = body
+        .replace('%', "%25")
+        .replace('#', "%23")
+        .replace('+', "%2B")
+        .replace(' ', "+");
+    Request::builder()
+        .method("POST")
+        .uri("/webhook/sms")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(Body::from(format!(
+            "From=%2B15559999999&To=%2B15551234567&Body={encoded}&MessageSid=SM_admin"
+        )))
+        .unwrap()
+}
+
 fn test_app(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/health", get(handlers::health::health))
@@ -762,6 +796,210 @@ async fn test_health() {
         .unwrap();
 
     assert_eq!(res.status(), StatusCode::OK);
+}
+
+// ── SMS Admin Command Tests ──
+
+#[tokio::test]
+async fn test_admin_sms_pause() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app.oneshot(owner_sms_request("#pause")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    assert!(
+        state.paused.load(std::sync::atomic::Ordering::SeqCst),
+        "agent should be paused after #pause"
+    );
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.to_lowercase().contains("paused"),
+        "reply should mention paused, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_resume() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app.oneshot(owner_sms_request("#resume")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    assert!(
+        !state.paused.load(std::sync::atomic::Ordering::SeqCst),
+        "agent should not be paused after #resume"
+    );
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.to_lowercase().contains("resumed"),
+        "reply should mention resumed, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_status() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app.oneshot(owner_sms_request("#status")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.contains("ACTIVE"),
+        "reply should contain ACTIVE, got: {}",
+        messages[0].1
+    );
+    assert!(
+        messages[0].1.contains("Messages this hour"),
+        "reply should contain message count, got: {}",
+        messages[0].1
+    );
+    assert!(
+        messages[0].1.contains("Blocked numbers"),
+        "reply should contain blocked count, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_block() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app
+        .oneshot(owner_sms_request("#block +15551112222"))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // Verify number is blocked in DB
+    {
+        let db = state.db.lock().unwrap();
+        assert!(
+            phonebook::db::queries::is_blocked(&db, "+15551112222").unwrap(),
+            "number should be blocked after #block"
+        );
+    }
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.contains("Blocked"),
+        "reply should contain Blocked, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_unblock() {
+    let (state, sent) = test_state_with_sent();
+
+    // Block a number first
+    {
+        let db = state.db.lock().unwrap();
+        phonebook::db::queries::block_number(&db, "+15551112222", Some("test"), false).unwrap();
+    }
+
+    let app = test_app(state.clone());
+    let res = app
+        .oneshot(owner_sms_request("#unblock +15551112222"))
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // Verify number is unblocked in DB
+    {
+        let db = state.db.lock().unwrap();
+        assert!(
+            !phonebook::db::queries::is_blocked(&db, "+15551112222").unwrap(),
+            "number should be unblocked after #unblock"
+        );
+    }
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.contains("Unblocked"),
+        "reply should contain Unblocked, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_block_no_arg() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app.oneshot(owner_sms_request("#block")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.contains("Usage:"),
+        "reply should contain Usage:, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_admin_sms_unknown_command() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    let res = app.oneshot(owner_sms_request("#foo")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1);
+    assert!(
+        messages[0].1.contains("#pause") && messages[0].1.contains("#resume"),
+        "reply should list available commands, got: {}",
+        messages[0].1
+    );
+}
+
+#[tokio::test]
+async fn test_non_owner_hash_not_admin() {
+    let (state, sent) = test_state_with_sent();
+    let app = test_app(state.clone());
+
+    // Send #pause from a non-owner number
+    let res = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/webhook/sms")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(Body::from(
+                    "From=%2B15550001111&To=%2B15551234567&Body=%23pause&MessageSid=SM_nonadmin",
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+
+    // Agent should NOT be paused
+    assert!(
+        !state.paused.load(std::sync::atomic::Ordering::SeqCst),
+        "agent should not be paused when non-owner sends #pause"
+    );
+
+    // Message should have gone to conversation engine (LLM reply sent back)
+    let messages = sent.lock().unwrap();
+    assert_eq!(messages.len(), 1, "conversation engine should have replied");
+    assert_eq!(messages[0].0, "+15550001111", "reply should go to sender");
 }
 
 // ── Admin Page ──
