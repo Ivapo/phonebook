@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Agent - Dev Chat</title>
+<style>
+:root {
+  --bg: #f8f9fa;
+  --card: #fff;
+  --border: #dee2e6;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --success: #16a34a;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --radius: 8px;
+  --msg-sent: #2563eb;
+  --msg-received: #e5e7eb;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+header h1 { font-size: 1.25rem; }
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-active { background: #dcfce7; color: #166534; }
+.badge-paused { background: #fef3c7; color: #92400e; }
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding: 1rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.panel-header .phone {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.msg {
+  max-width: 80%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.msg-sent {
+  align-self: flex-end;
+  background: var(--msg-sent);
+  color: #fff;
+  border-bottom-right-radius: 0.25rem;
+}
+
+.msg-received {
+  align-self: flex-start;
+  background: var(--msg-received);
+  color: var(--text);
+  border-bottom-left-radius: 0.25rem;
+}
+
+.msg-error {
+  align-self: center;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 0.8rem;
+  border-radius: var(--radius);
+}
+
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.chat-input input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.chat-input button {
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.chat-input button:hover { background: var(--primary-hover); }
+.chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hint {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+@media (max-width: 700px) {
+  .panels {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Dev Chat</h1>
+  <div class="status-bar">
+    <span>Agent:</span>
+    <span class="badge badge-active" id="statusBadge">ACTIVE</span>
+    <a href="/admin" style="font-size:0.8rem;color:var(--primary);text-decoration:none">Admin</a>
+  </div>
+</header>
+
+<div class="panels">
+  <!-- Customer Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      Customer
+      <span class="phone">+15550001111</span>
+    </div>
+    <div class="chat-messages" id="customerMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="customerInput" placeholder="Type a message..." autocomplete="off">
+      <button id="customerSend" onclick="sendMsg('customer')">Send</button>
+    </div>
+  </div>
+
+  <!-- Owner Panel -->
+  <div class="panel">
+    <div class="panel-header">
+      Owner
+      <span class="phone" id="ownerPhone"></span>
+    </div>
+    <div class="chat-messages" id="ownerMessages"></div>
+    <div class="chat-input">
+      <input type="text" id="ownerInput" placeholder="Type a message or # command..." autocomplete="off">
+      <button id="ownerSend" onclick="sendMsg('owner')">Send</button>
+    </div>
+    <div class="hint">Commands: #pause, #resume, #status, #block &lt;number&gt;, #unblock &lt;number&gt;</div>
+  </div>
+</div>
+
+<script>
+const CUSTOMER_PHONE = '+15550001111';
+let OWNER_PHONE = '';
+
+// Fetch owner phone from admin status endpoint (no auth needed for dev)
+async function fetchStatus() {
+  try {
+    const res = await fetch('/api/admin/status');
+    if (res.ok) {
+      const data = await res.json();
+      const paused = data.paused;
+      const badge = document.getElementById('statusBadge');
+      badge.textContent = paused ? 'PAUSED' : 'ACTIVE';
+      badge.className = 'badge ' + (paused ? 'badge-paused' : 'badge-active');
+    }
+  } catch {}
+}
+
+// Try to get owner phone from settings
+async function init() {
+  try {
+    const res = await fetch('/api/admin/settings');
+    if (res.ok) {
+      const data = await res.json();
+      OWNER_PHONE = data.owner_phone || '+15559999999';
+    }
+  } catch {}
+  if (!OWNER_PHONE) OWNER_PHONE = '+15559999999';
+  document.getElementById('ownerPhone').textContent = OWNER_PHONE;
+  fetchStatus();
+  setInterval(fetchStatus, 5000);
+}
+
+function appendMsg(panel, text, type) {
+  const container = document.getElementById(panel + 'Messages');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendMsg(panel) {
+  const inputEl = document.getElementById(panel + 'Input');
+  const btnEl = document.getElementById(panel + 'Send');
+  const message = inputEl.value.trim();
+  if (!message) return;
+
+  const fromPhone = panel === 'customer' ? CUSTOMER_PHONE : OWNER_PHONE;
+
+  appendMsg(panel, message, 'sent');
+  inputEl.value = '';
+  btnEl.disabled = true;
+
+  try {
+    const res = await fetch('/api/dev/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_phone: fromPhone, message })
+    });
+    const data = await res.json();
+    if (data.success) {
+      appendMsg(panel, data.reply, 'received');
+    } else {
+      appendMsg(panel, 'Error: ' + (data.error || 'Unknown error'), 'error');
+    }
+  } catch (e) {
+    appendMsg(panel, 'Network error: ' + e.message, 'error');
+  }
+
+  btnEl.disabled = false;
+  inputEl.focus();
+  fetchStatus();
+}
+
+// Enter key to send
+document.getElementById('customerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMsg('customer');
+});
+document.getElementById('ownerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMsg('owner');
+});
+
+init();
+</script>
+</body>
+</html>

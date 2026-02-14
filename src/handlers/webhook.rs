@@ -200,7 +200,7 @@ pub async fn sms_webhook(
     twiml_response()
 }
 
-async fn handle_admin_command(state: &Arc<AppState>, body: &str) -> String {
+pub async fn handle_admin_command(state: &Arc<AppState>, body: &str) -> String {
     let parts: Vec<&str> = body.splitn(2, ' ').collect();
     let command = parts[0].to_lowercase();
     let arg = parts.get(1).map(|s| s.trim());

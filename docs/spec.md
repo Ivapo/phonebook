@@ -115,6 +115,14 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] 22 unit tests (models, services, scheduling)
 - [x] 26 integration tests (admin API, webhook, SMS commands, calendar, rate limiting)
 
+### Dev Chat UI
+
+- [x] GET `/dev` — two-panel SMS simulator (Customer + Owner) for testing without Twilio
+- [x] POST `/api/dev/message` — processes messages through conversation engine, returns replies as JSON
+- [x] Reuses same conversation logic and admin commands as the webhook
+- [x] Status bar auto-refreshes agent state every 5s
+- [x] No auth required (dev-only tool)
+
 ### Other
 
 - [x] GET `/health` — health check endpoint
@@ -196,6 +204,7 @@ src/
     webhook.rs       — SMS webhook, admin commands, rate limiting
     admin.rs         — Admin API endpoints
     calendar.rs      — .ics download handler
+    dev.rs           — Dev chat UI + message API
     health.rs        — Health check
   services/
     ai/
@@ -216,6 +225,7 @@ src/
     queries.rs       — All SQL queries
   web/
     admin.html       — Embedded admin UI
+    dev_chat.html    — Embedded dev chat simulator
 migrations/
   001_initial.sql    — Schema
 tests/

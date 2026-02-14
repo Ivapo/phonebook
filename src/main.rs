@@ -61,6 +61,8 @@ async fn main() -> anyhow::Result<()> {
             "/calendar/:booking_id",
             get(handlers::calendar::download_ics),
         )
+        .route("/dev", get(handlers::dev::dev_page))
+        .route("/api/dev/message", post(handlers::dev::send_message))
         .with_state(state);
 
     let addr = format!("0.0.0.0:{}", config.port);
