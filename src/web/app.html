@@ -102,6 +102,7 @@ body {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
+  cursor: pointer;
 }
 .status-pill.active { background: #dcfce7; color: #166534; }
 .status-pill.paused { background: #fef3c7; color: #92400e; }
@@ -388,23 +389,63 @@ body {
 .stat-chip .val { font-size: 1.4rem; font-weight: 700; }
 .stat-chip .lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
-.activity-month {
-  font-size: 0.9rem; font-weight: 600;
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.activity-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
   color: var(--text-muted);
-  margin-bottom: 0.5rem;
+  text-align: right;
+  padding: 0 0.4rem 0.5rem;
+}
+.activity-table th:first-child { text-align: left; }
+.activity-table td {
+  padding: 0.35rem 0.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--border);
+}
+.activity-table .activity-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 .pause-btn {
   width: 100%; padding: 0.6rem;
   border: none; border-radius: var(--radius-sm);
   font-size: 0.9rem; font-weight: 600;
-  cursor: pointer; margin-top: 0.75rem;
+  cursor: pointer;
   color: #fff;
 }
 .pause-btn.resume { background: var(--primary); }
 .pause-btn.resume:hover { background: var(--primary-hover); }
 .pause-btn.pause { background: var(--danger); }
 .pause-btn.pause:hover { background: var(--danger-hover); }
+
+/* Calendar feed */
+.feed-url-row {
+  display: flex; gap: 0.5rem;
+}
+.feed-url-row input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem; font-family: monospace;
+  background: var(--bg); color: var(--text);
+}
+.feed-url-row button {
+  padding: 0.5rem 0.85rem;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.85rem; cursor: pointer;
+  flex-shrink: 0;
+}
+.feed-url-row button:hover { background: var(--primary-hover); }
 
 /* Blocked numbers */
 .blocked-add {
@@ -581,7 +622,7 @@ body {
   <!-- Header -->
   <div class="app-header">
     <h1>Booking Agent</h1>
-    <span class="status-pill" id="status-pill">--</span>
+    <span class="status-pill" id="status-pill" onclick="togglePause()" title="Click to pause/resume">--</span>
     <span class="sse-dot disconnected" id="sse-dot" title="SSE connection"></span>
     <span class="header-spacer"></span>
     <button class="header-signout" onclick="doLogout()">Sign out</button>
@@ -627,29 +668,31 @@ body {
 
     <!-- Settings -->
     <div class="tab-panel" id="settings-panel">
-      <!-- Stats + Pause -->
-      <div class="settings-section">
-        <h3>Status</h3>
-        <div class="stats-row">
-          <div class="stat-chip"><div class="val" id="stat-msgs">--</div><div class="lbl">Msgs/hr</div></div>
-          <div class="stat-chip"><div class="val" id="stat-bookings">--</div><div class="lbl">Bookings</div></div>
-          <div class="stat-chip"><div class="val" id="stat-blocked">--</div><div class="lbl">Blocked</div></div>
-        </div>
-        <button class="pause-btn resume" id="pause-btn" onclick="togglePause()">Loading...</button>
-      </div>
+      <!-- Pause/Resume -->
+      <button class="pause-btn resume" id="pause-btn" onclick="togglePause()">Loading...</button>
 
       <!-- Monthly Activity -->
       <div class="settings-section">
         <h3>Monthly Activity</h3>
-        <div class="activity-month" id="activity-month">--</div>
-        <div class="stats-row">
-          <div class="stat-chip"><div class="val" id="act-recv">0</div><div class="lbl">Recv</div></div>
-          <div class="stat-chip"><div class="val" id="act-sent">0</div><div class="lbl">Sent</div></div>
-          <div class="stat-chip"><div class="val" id="act-booked">0</div><div class="lbl">Booked</div></div>
-        </div>
-        <div class="stats-row" style="margin-top:0.5rem">
-          <div class="stat-chip"><div class="val" id="act-cancel">0</div><div class="lbl">Cancel</div></div>
-          <div class="stat-chip"><div class="val" id="act-resched">0</div><div class="lbl">Resched</div></div>
+        <table class="activity-table" id="activity-table">
+          <thead><tr><th></th></tr></thead>
+          <tbody>
+            <tr><td class="activity-label">SMS Received</td></tr>
+            <tr><td class="activity-label">SMS Sent</td></tr>
+            <tr><td class="activity-label">Bookings</td></tr>
+            <tr><td class="activity-label">Cancellations</td></tr>
+            <tr><td class="activity-label">Reschedules</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Calendar Feed -->
+      <div class="settings-section">
+        <h3>Calendar Feed</h3>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem">Subscribe to this URL in your phone's calendar app to see all bookings automatically.</p>
+        <div class="feed-url-row">
+          <input type="text" id="feed-url" readonly>
+          <button onclick="copyFeedUrl()">Copy</button>
         </div>
       </div>
 
@@ -890,7 +933,7 @@ function switchTab(tab) {
 
   if (tab === 'inbox') updateInboxBadge();
   if (tab === 'bookings') loadBookings();
-  if (tab === 'settings') { loadStatus(); loadActivity(); loadBlocked(); loadSettings(); }
+  if (tab === 'settings') { loadStatus(); loadActivity(); updateFeedUrl(); loadBlocked(); loadSettings(); }
 }
 
 /* ═══════════════════════════════════════════
@@ -922,10 +965,6 @@ async function loadStatus() {
     pill.textContent = data.paused ? 'Paused' : 'Active';
     pill.className = 'status-pill ' + (data.paused ? 'paused' : 'active');
 
-    document.getElementById('stat-msgs').textContent = data.messages_this_hour;
-    document.getElementById('stat-bookings').textContent = data.upcoming_bookings_count;
-    document.getElementById('stat-blocked').textContent = data.blocked_count;
-
     const btn = document.getElementById('pause-btn');
     btn.textContent = data.paused ? 'Resume Agent' : 'Pause Agent';
     btn.className = 'pause-btn ' + (data.paused ? 'resume' : 'pause');
@@ -934,15 +973,25 @@ async function loadStatus() {
 
 async function loadActivity() {
   try {
-    const data = await apiFetch('/api/admin/activity');
-    const d = new Date(data.month + '-01');
-    const label = d.toLocaleDateString([], { month: 'long', year: 'numeric' });
-    document.getElementById('activity-month').textContent = label;
-    document.getElementById('act-recv').textContent = data.messages_received;
-    document.getElementById('act-sent').textContent = data.messages_sent;
-    document.getElementById('act-booked').textContent = data.bookings_created;
-    document.getElementById('act-cancel').textContent = data.bookings_cancelled;
-    document.getElementById('act-resched').textContent = data.bookings_rescheduled;
+    const months = await apiFetch('/api/admin/activity');
+    const labels = months.map(m => {
+      const d = new Date(m.month + '-01');
+      return d.toLocaleDateString([], { month: 'short', year: 'numeric' });
+    });
+    const rows = [
+      { label: 'SMS Received', key: 'messages_received' },
+      { label: 'SMS Sent', key: 'messages_sent' },
+      { label: 'Bookings', key: 'bookings_created' },
+      { label: 'Cancellations', key: 'bookings_cancelled' },
+      { label: 'Reschedules', key: 'bookings_rescheduled' },
+    ];
+    const table = document.getElementById('activity-table');
+    const headerCells = labels.map(l => `<th>${escapeHtml(l)}</th>`).join('');
+    const bodyRows = rows.map(r => {
+      const cells = months.map(m => `<td>${m[r.key]}</td>`).join('');
+      return `<tr><td class="activity-label">${r.label}</td>${cells}</tr>`;
+    }).join('');
+    table.innerHTML = `<thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}</tbody>`;
   } catch (e) { console.error('loadActivity:', e); }
 }
 
@@ -1185,6 +1234,19 @@ async function cancelBooking(id) {
 /* ═══════════════════════════════════════════
    Blocked Numbers
    ═══════════════════════════════════════════ */
+function updateFeedUrl() {
+  const base = location.origin;
+  document.getElementById('feed-url').value = `${base}/calendar/feed.ics?token=${encodeURIComponent(TOKEN)}`;
+}
+
+function copyFeedUrl() {
+  const input = document.getElementById('feed-url');
+  navigator.clipboard.writeText(input.value).then(
+    () => toast('URL copied'),
+    () => { input.select(); document.execCommand('copy'); toast('URL copied'); }
+  );
+}
+
 async function loadBlocked() {
   try {
     const blocked = await apiFetch('/api/admin/blocked');

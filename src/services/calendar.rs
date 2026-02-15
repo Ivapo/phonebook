@@ -35,6 +35,50 @@ pub fn generate_ics(booking: &Booking, business_name: &str) -> String {
     )
 }
 
+pub fn generate_ics_feed(bookings: &[Booking], business_name: &str) -> String {
+    let mut ics = String::from(
+        "BEGIN:VCALENDAR\r\n\
+         VERSION:2.0\r\n\
+         PRODID:-//Phonebook//Booking Agent//EN\r\n\
+         X-WR-CALNAME:Bookings\r\n\
+         METHOD:PUBLISH\r\n",
+    );
+
+    for booking in bookings {
+        let dtstart = booking.date_time.format("%Y%m%dT%H%M%S").to_string();
+        let dtend = (booking.date_time + Duration::minutes(booking.duration_minutes as i64))
+            .format("%Y%m%dT%H%M%S")
+            .to_string();
+        let dtstamp = booking.created_at.format("%Y%m%dT%H%M%S").to_string();
+        let uid = format!("{}@phonebook", booking.id);
+
+        let customer = booking
+            .customer_name
+            .as_deref()
+            .unwrap_or("Customer");
+        let summary = format!("{customer} - {business_name}");
+        let description = booking
+            .notes
+            .as_deref()
+            .unwrap_or("No additional notes");
+
+        ics.push_str(&format!(
+            "BEGIN:VEVENT\r\n\
+             UID:{uid}\r\n\
+             DTSTAMP:{dtstamp}\r\n\
+             DTSTART:{dtstart}\r\n\
+             DTEND:{dtend}\r\n\
+             SUMMARY:{summary}\r\n\
+             DESCRIPTION:{description}\r\n\
+             STATUS:CONFIRMED\r\n\
+             END:VEVENT\r\n"
+        ));
+    }
+
+    ics.push_str("END:VCALENDAR\r\n");
+    ics
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

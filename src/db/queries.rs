@@ -473,36 +473,47 @@ pub fn increment_monthly_rescheduled(conn: &Connection) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_current_monthly_activity(conn: &Connection) -> anyhow::Result<MonthlyActivity> {
-    let month = current_month();
-    let result = conn.query_row(
-        "SELECT month, messages_received, messages_sent, bookings_created, bookings_cancelled, bookings_rescheduled
-         FROM monthly_activity WHERE month = ?1",
-        params![month],
-        |row| {
-            Ok(MonthlyActivity {
-                month: row.get(0)?,
-                messages_received: row.get(1)?,
-                messages_sent: row.get(2)?,
-                bookings_created: row.get(3)?,
-                bookings_cancelled: row.get(4)?,
-                bookings_rescheduled: row.get(5)?,
-            })
-        },
-    );
+pub fn get_recent_monthly_activity(conn: &Connection, months: usize) -> anyhow::Result<Vec<MonthlyActivity>> {
+    let now = Utc::now();
+    let mut result = Vec::with_capacity(months);
 
-    match result {
-        Ok(activity) => Ok(activity),
-        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(MonthlyActivity {
-            month,
-            messages_received: 0,
-            messages_sent: 0,
-            bookings_created: 0,
-            bookings_cancelled: 0,
-            bookings_rescheduled: 0,
-        }),
-        Err(e) => Err(e.into()),
+    for i in 0..months {
+        let date = now - chrono::Months::new(i as u32);
+        let month = date.format("%Y-%m").to_string();
+
+        let activity = conn.query_row(
+            "SELECT month, messages_received, messages_sent, bookings_created, bookings_cancelled, bookings_rescheduled
+             FROM monthly_activity WHERE month = ?1",
+            params![month],
+            |row| {
+                Ok(MonthlyActivity {
+                    month: row.get(0)?,
+                    messages_received: row.get(1)?,
+                    messages_sent: row.get(2)?,
+                    bookings_created: row.get(3)?,
+                    bookings_cancelled: row.get(4)?,
+                    bookings_rescheduled: row.get(5)?,
+                })
+            },
+        );
+
+        result.push(match activity {
+            Ok(a) => a,
+            Err(rusqlite::Error::QueryReturnedNoRows) => MonthlyActivity {
+                month,
+                messages_received: 0,
+                messages_sent: 0,
+                bookings_created: 0,
+                bookings_cancelled: 0,
+                bookings_rescheduled: 0,
+            },
+            Err(e) => return Err(e.into()),
+        });
     }
+
+    // Return oldest first
+    result.reverse();
+    Ok(result)
 }
 
 // ── Users ──

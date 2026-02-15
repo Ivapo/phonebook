@@ -18,7 +18,7 @@ Rust-based SMS booking agent for freelancers. Handles appointment scheduling via
 - **Twilio**: BYOA (Bring Your Own Account) — user creates their own Twilio account, buys a number (~$1/mo), registers A2P 10DLC, and enters credentials in admin UI. We do NOT manage Twilio on behalf of users (no ISV subaccounts for MVP).
 - **App UI**: Unified PWA at `/app` — mobile-first, bottom tab bar (Inbox, Bookings, Settings), real-time SSE, token-auth, embedded via `include_str!`. `/admin` and `/inbox` redirect to `/app`.
 - **Database**: SQLite via rusqlite (bundled), migrations in `migrations/`
-- **Calendar**: .ics file generation sent via SMS, no Google OAuth
+- **Calendar**: .ics file generation sent via SMS + subscribable iCal feed (`/calendar/feed.ics`), no Google OAuth
 - **Pricing**: $39 one-time (self-hosted), $7/mo (cloud-hosted, we run the server). User pays Twilio directly in both tiers.
 
 See `docs/spec.md` for the full MVP specification, including database schema, conversation flow, and deployment instructions.

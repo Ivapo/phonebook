@@ -78,6 +78,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/admin/settings",
             post(handlers::admin::update_settings),
         )
+        .route("/calendar/feed.ics", get(handlers::calendar::calendar_feed))
         .route(
             "/calendar/:booking_id",
             get(handlers::calendar::download_ics),

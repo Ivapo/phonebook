@@ -137,7 +137,7 @@ pub async fn get_bookings(
 
 // GET /api/admin/activity
 #[derive(Serialize)]
-pub struct ActivityResponse {
+pub struct ActivityMonth {
     month: String,
     messages_received: i64,
     messages_sent: i64,
@@ -149,12 +149,12 @@ pub struct ActivityResponse {
 pub async fn get_activity(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-) -> Result<Json<ActivityResponse>, Response> {
+) -> Result<Json<Vec<ActivityMonth>>, Response> {
     check_auth(&headers, &state.config.admin_token)?;
 
-    let activity = {
+    let months = {
         let db = state.db.lock().unwrap();
-        queries::get_current_monthly_activity(&db).map_err(|e| {
+        queries::get_recent_monthly_activity(&db, 3).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
@@ -163,14 +163,19 @@ pub async fn get_activity(
         })?
     };
 
-    Ok(Json(ActivityResponse {
-        month: activity.month,
-        messages_received: activity.messages_received,
-        messages_sent: activity.messages_sent,
-        bookings_created: activity.bookings_created,
-        bookings_cancelled: activity.bookings_cancelled,
-        bookings_rescheduled: activity.bookings_rescheduled,
-    }))
+    let response: Vec<ActivityMonth> = months
+        .into_iter()
+        .map(|a| ActivityMonth {
+            month: a.month,
+            messages_received: a.messages_received,
+            messages_sent: a.messages_sent,
+            bookings_created: a.bookings_created,
+            bookings_cancelled: a.bookings_cancelled,
+            bookings_rescheduled: a.bookings_rescheduled,
+        })
+        .collect();
+
+    Ok(Json(response))
 }
 
 // POST /api/admin/bookings/:id/cancel

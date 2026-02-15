@@ -52,18 +52,22 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 ### Calendar Integration
 
 - [x] .ics file generation (RFC 5545 compliant)
-- [x] GET `/calendar/:booking_id` serves .ics download
+- [x] GET `/calendar/:booking_id` serves .ics download for individual bookings
 - [x] Calendar URL included in booking confirmation SMS
+- [x] GET `/calendar/feed.ics?token=...` — subscribable iCal feed of all upcoming bookings
+- [x] Feed works with iOS Calendar, Google Calendar, Outlook (any app supporting iCal subscriptions)
+- [x] Subscription URL shown in Settings tab with copy button
 
 ### App UI & Admin API
 
 - [x] GET `/app` — unified mobile-first PWA with bottom tab bar (Inbox, Bookings, Settings)
 - [x] GET `/admin`, GET `/inbox` — permanent redirects to `/app`
-- [x] Header bar with agent status pill (Active/Paused), SSE connection dot, sign out
+- [x] Header bar with clickable status pill (Active/Paused — tap to toggle), SSE connection dot, sign out
 - [x] Token stored as `app_token` in localStorage, auto-migrates from `admin_token`/`inbox_token`
 - [x] PWA: inline manifest, blob service worker, Add to Home Screen support
 - [x] Bearer token auth on all `/api/admin/*` and `/api/inbox/*` endpoints
-- [x] GET `/api/admin/status` — dashboard stats (paused, messages/hr, blocked count, upcoming bookings)
+- [x] GET `/api/admin/status` — agent paused state
+- [x] GET `/api/admin/activity` — monthly activity stats (3 months: messages received/sent, bookings created/cancelled/rescheduled)
 - [x] GET `/api/admin/bookings` — list bookings (filterable by status)
 - [x] POST `/api/admin/bookings/:id/cancel` — cancel a booking
 - [x] GET `/api/admin/blocked` — list blocked numbers
@@ -114,7 +118,12 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] Manual blocklist (SMS + admin UI)
 - [x] Silent ignore for blocked numbers (no outbound reply = no Twilio cost)
 - [x] Hourly window cleanup
-- [ ] Monthly message count tracking
+
+### Monthly Activity Tracking
+
+- [x] `monthly_activity` table — tracks per-month: messages received, messages sent, bookings created, cancelled, rescheduled
+- [x] UPSERT counters at all send/receive/booking points
+- [x] Settings tab shows 3-month activity table
 - [ ] Twilio cost estimate calculation
 - [ ] Configurable monthly budget in admin UI
 - [ ] Budget threshold alerts (e.g. 80% warning)
@@ -164,15 +173,13 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 
 ### Monthly Budget System
 
-The hourly rate limiting is done, but monthly cost tracking is missing. Needed:
+Monthly activity tracking (message/booking counts) is done. Cost tracking & budgets still needed:
 
-1. **DB table**: `monthly_usage` with columns for month, inbound count, outbound count, estimated cost
-2. **Increment on each send/receive**: update counters in webhook handler
-3. **Cost estimation**: inbound ~$0.0079/msg, outbound ~$0.0079/msg (US Twilio pricing)
-4. **Admin UI widget**: show current month spend, budget bar, configure budget
-5. **API endpoints**: GET `/api/admin/budget`, POST `/api/admin/budget` (set limit + mode)
-6. **Threshold alerts**: notify owner at configurable % (default 80%)
-7. **Enforcement**: pause agent or alert-only when budget reached (owner's choice)
+1. **Cost estimation**: inbound ~$0.0079/msg, outbound ~$0.0079/msg (US Twilio pricing)
+2. **Admin UI widget**: budget bar, configure budget limit
+3. **API endpoints**: GET `/api/admin/budget`, POST `/api/admin/budget` (set limit + mode)
+4. **Threshold alerts**: notify owner at configurable % (default 80%)
+5. **Enforcement**: pause agent or alert-only when budget reached (owner's choice)
 
 ### Alternative LLM Backends
 
@@ -232,7 +239,7 @@ src/
     webhook.rs       — SMS webhook, admin commands, rate limiting
     admin.rs         — App page handler + admin API endpoints
     inbox.rs         — Inbox API endpoints + SSE stream
-    calendar.rs      — .ics download handler
+    calendar.rs      — .ics download + subscription feed handler
     dev.rs           — Dev chat UI + message API
     health.rs        — Health check
   services/
@@ -243,7 +250,7 @@ src/
     messaging/
       mod.rs         — MessagingProvider trait
       twilio_sms.rs  — Twilio SMS implementation
-    calendar.rs      — .ics generation
+    calendar.rs      — .ics generation (single booking + multi-event feed)
     conversation.rs  — Multi-turn conversation engine
     scheduling.rs    — Availability & conflict checking
     inbox.rs         — Inbox event recording + broadcast
@@ -260,6 +267,7 @@ src/
 migrations/
   001_initial.sql    — Schema
   003_ai_preferences.sql — AI preferences column on users
+  004_monthly_activity.sql — Monthly activity tracking table
 tests/
   integration_tests.rs — Full integration test suite
 docs/
