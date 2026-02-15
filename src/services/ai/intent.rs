@@ -1,4 +1,4 @@
-use crate::models::{ConversationMessage, ExtractedIntent, Intent};
+use crate::models::{AiPreferences, ConversationMessage, ExtractedIntent, Intent};
 use crate::services::ai::{LlmProvider, Message};
 
 const SYSTEM_PROMPT: &str = r#"You are an intent extraction engine for an SMS booking assistant. Analyze the customer's latest message in context of the conversation history.
@@ -39,6 +39,7 @@ pub async fn extract_intent(
     history: &[ConversationMessage],
     latest_message: &str,
     business_context: &str,
+    ai_preferences: Option<&AiPreferences>,
 ) -> anyhow::Result<ExtractedIntent> {
     let mut messages: Vec<Message> = history
         .iter()
@@ -53,7 +54,11 @@ pub async fn extract_intent(
         content: latest_message.to_string(),
     });
 
-    let system = format!("{SYSTEM_PROMPT}\n\nBusiness context:\n{business_context}");
+    let personality = ai_preferences
+        .map(|p| p.to_prompt())
+        .unwrap_or_default();
+
+    let system = format!("{SYSTEM_PROMPT}{personality}\n\nBusiness context:\n{business_context}");
 
     let response = llm.chat(&system, &messages).await?;
 

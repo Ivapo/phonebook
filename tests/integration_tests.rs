@@ -709,6 +709,7 @@ async fn test_booking_outside_business_hours_rejected() {
                     .to_string(),
             ),
             timezone: "America/New_York".to_string(),
+            ai_preferences: None,
         };
         phonebook::db::queries::save_user(&db, &user).unwrap();
     }

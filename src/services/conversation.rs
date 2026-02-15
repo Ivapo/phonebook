@@ -4,8 +4,8 @@ use chrono::{Duration, Utc};
 
 use crate::db::queries;
 use crate::models::{
-    Availability, Booking, BookingStatus, Conversation, ConversationMessage, ConversationState,
-    Intent, PendingBooking,
+    AiPreferences, Availability, Booking, BookingStatus, Conversation, ConversationMessage,
+    ConversationState, Intent, PendingBooking,
 };
 use crate::services::ai::intent::extract_intent;
 use crate::services::inbox::record_inbox_event;
@@ -24,15 +24,21 @@ pub async fn process_message(
     }
     .unwrap_or_else(|| new_conversation(from_phone));
 
-    // Load user availability
-    let availability = {
+    // Load user settings
+    let user = {
         let db = state.db.lock().unwrap();
-        queries::get_user(&db, "default")
-            .ok()
-            .flatten()
-            .and_then(|u| u.availability)
-            .and_then(|s| Availability::from_json(&s).ok())
+        queries::get_user(&db, "default").ok().flatten()
     };
+
+    let availability = user
+        .as_ref()
+        .and_then(|u| u.availability.as_deref())
+        .and_then(|s| Availability::from_json(s).ok());
+
+    let ai_preferences = user
+        .as_ref()
+        .and_then(|u| u.ai_preferences.as_deref())
+        .and_then(|s| AiPreferences::from_json(s).ok());
 
     // Append user message
     conv.messages.push(ConversationMessage {
@@ -68,6 +74,7 @@ pub async fn process_message(
         &conv.messages,
         message,
         &business_context,
+        ai_preferences.as_ref(),
     )
     .await?;
 

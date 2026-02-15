@@ -11,4 +11,5 @@ pub struct User {
     pub twilio_phone_number: String,
     pub availability: Option<String>,
     pub timezone: String,
+    pub ai_preferences: Option<String>,
 }

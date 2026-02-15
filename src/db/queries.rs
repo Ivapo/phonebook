@@ -412,7 +412,7 @@ fn current_hour_window() -> String {
 
 pub fn get_user(conn: &Connection, id: &str) -> anyhow::Result<Option<User>> {
     let result = conn.query_row(
-        "SELECT id, business_name, owner_name, owner_phone, twilio_account_sid, twilio_auth_token, twilio_phone_number, availability, timezone
+        "SELECT id, business_name, owner_name, owner_phone, twilio_account_sid, twilio_auth_token, twilio_phone_number, availability, timezone, ai_preferences
          FROM users WHERE id = ?1",
         params![id],
         |row| {
@@ -426,6 +426,7 @@ pub fn get_user(conn: &Connection, id: &str) -> anyhow::Result<Option<User>> {
                 twilio_phone_number: row.get(6)?,
                 availability: row.get(7)?,
                 timezone: row.get(8)?,
+                ai_preferences: row.get(9)?,
             })
         },
     );
@@ -439,8 +440,8 @@ pub fn get_user(conn: &Connection, id: &str) -> anyhow::Result<Option<User>> {
 
 pub fn save_user(conn: &Connection, user: &User) -> anyhow::Result<()> {
     conn.execute(
-        "INSERT INTO users (id, business_name, owner_name, owner_phone, twilio_account_sid, twilio_auth_token, twilio_phone_number, availability, timezone)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+        "INSERT INTO users (id, business_name, owner_name, owner_phone, twilio_account_sid, twilio_auth_token, twilio_phone_number, availability, timezone, ai_preferences)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
          ON CONFLICT(id) DO UPDATE SET
            business_name = excluded.business_name,
            owner_name = excluded.owner_name,
@@ -450,6 +451,7 @@ pub fn save_user(conn: &Connection, user: &User) -> anyhow::Result<()> {
            twilio_phone_number = excluded.twilio_phone_number,
            availability = excluded.availability,
            timezone = excluded.timezone,
+           ai_preferences = excluded.ai_preferences,
            updated_at = datetime('now')",
         params![
             user.id,
@@ -461,6 +463,7 @@ pub fn save_user(conn: &Connection, user: &User) -> anyhow::Result<()> {
             user.twilio_phone_number,
             user.availability,
             user.timezone,
+            user.ai_preferences,
         ],
     )?;
     Ok(())

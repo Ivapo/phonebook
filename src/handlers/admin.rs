@@ -295,6 +295,7 @@ pub struct SettingsResponse {
     twilio_configured: bool,
     availability: Option<String>,
     timezone: String,
+    ai_preferences: Option<String>,
 }
 
 pub async fn get_settings(
@@ -318,6 +319,7 @@ pub async fn get_settings(
             twilio_configured: !u.twilio_account_sid.is_empty(),
             availability: u.availability,
             timezone: u.timezone,
+            ai_preferences: u.ai_preferences,
         })),
         None => Ok(Json(SettingsResponse {
             business_name: String::new(),
@@ -327,6 +329,7 @@ pub async fn get_settings(
             twilio_configured: !state.config.twilio_account_sid.is_empty(),
             availability: None,
             timezone: "UTC".to_string(),
+            ai_preferences: None,
         })),
     }
 }
@@ -338,6 +341,7 @@ pub struct UpdateSettingsRequest {
     pub owner_name: Option<String>,
     pub availability: Option<String>,
     pub timezone: Option<String>,
+    pub ai_preferences: Option<String>,
 }
 
 pub async fn update_settings(
@@ -363,6 +367,7 @@ pub async fn update_settings(
             twilio_phone_number: state.config.twilio_phone_number.clone(),
             availability: None,
             timezone: "UTC".to_string(),
+            ai_preferences: None,
         });
 
     if let Some(name) = body.business_name {
@@ -376,6 +381,17 @@ pub async fn update_settings(
     }
     if let Some(tz) = body.timezone {
         user.timezone = tz;
+    }
+    if let Some(ref ai_prefs) = body.ai_preferences {
+        // Validate JSON parses as AiPreferences
+        if let Err(e) = crate::models::AiPreferences::from_json(ai_prefs) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(serde_json::json!({"error": format!("invalid ai_preferences JSON: {e}")})),
+            )
+                .into_response());
+        }
+        user.ai_preferences = Some(ai_prefs.clone());
     }
 
     queries::save_user(&db, &user).map_err(|e| {
