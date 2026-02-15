@@ -441,8 +441,13 @@ body {
 
 /* Business settings form */
 .form-group { margin-bottom: 0.75rem; }
-.form-group label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.2rem; }
-.form-group input, .form-group select {
+.form-group > label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.2rem; }
+.form-group input[type="text"],
+.form-group input[type="tel"],
+.form-group input[type="password"],
+.form-group input[type="email"],
+.form-group input[type="number"],
+.form-group select {
   width: 100%; padding: 0.5rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -487,18 +492,40 @@ body {
   font-size: 0.85rem; font-family: inherit;
   resize: vertical; min-height: 60px;
 }
-.radio-group, .checkbox-group { display: flex; flex-direction: column; gap: 0.4rem; }
-.radio-group label, .checkbox-group label {
-  display: flex; align-items: center; gap: 0.4rem;
-  font-size: 0.85rem; font-weight: 400; cursor: pointer;
+.radio-group, .checkbox-group {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  padding: 0.35rem 0;
 }
-.radio-group input, .checkbox-group input { margin: 0; }
+.radio-group label, .checkbox-group label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.85rem; font-weight: 400; cursor: pointer;
+  margin-bottom: 0; line-height: 1.3;
+}
+.radio-group input[type="radio"],
+.checkbox-group input[type="checkbox"] {
+  width: 16px; height: 16px; margin: 0;
+  flex-shrink: 0; accent-color: var(--primary);
+}
 .coming-soon {
   display: inline-block; padding: 0.05rem 0.4rem;
   background: #e5e7eb; color: #6b7280;
   border-radius: 999px; font-size: 0.6rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.03em;
   vertical-align: middle; margin-left: 0.25rem;
+}
+.ai-subsection {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.ai-subsection:last-of-type { border-bottom: none; padding-bottom: 0; }
+.ai-subsection:first-of-type { padding-top: 0; }
+.ai-subsection-label {
+  font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ai-indent {
+  margin-left: 1.6rem; margin-top: 0.35rem;
 }
 
 /* ── Toast ── */
@@ -649,26 +676,30 @@ body {
       <!-- AI Personality -->
       <div class="settings-section">
         <h3>AI Personality</h3>
-        <div class="form-group">
-          <label>Agent Name</label>
-          <input type="text" id="ai-agent-name" placeholder="e.g. Sophie, Alex">
-        </div>
-        <div class="form-group">
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Identity</div>
+          <div class="form-group">
+            <label>Agent Name</label>
+            <input type="text" id="ai-agent-name" placeholder="e.g. Sophie, Alex">
+          </div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="ai-disclose-ai" checked> Disclose that it's an AI</label>
             <label><input type="checkbox" id="ai-act-as-business"> Speak as business owner (uses I/my)</label>
           </div>
         </div>
-        <div class="form-group">
-          <label>Tone</label>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Tone</div>
           <div class="radio-group">
             <label><input type="radio" name="ai-tone" value="professional" checked> Professional</label>
             <label><input type="radio" name="ai-tone" value="friendly"> Friendly</label>
             <label><input type="radio" name="ai-tone" value="casual"> Casual</label>
           </div>
         </div>
-        <div class="form-group">
-          <label>Capabilities</label>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Capabilities</div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="ai-can-book" checked> Book appointments</label>
             <label><input type="checkbox" id="ai-can-cancel" checked> Cancel appointments</label>
@@ -677,28 +708,34 @@ body {
             <label><input type="checkbox" id="ai-can-reminders" disabled> Send reminders <span class="coming-soon">coming soon</span></label>
           </div>
         </div>
-        <div class="form-group">
-          <label>Returning Customers</label>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Returning Customers</div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="ai-greet-name" checked> Greet by name</label>
             <label><input type="checkbox" id="ai-remember-prefs"> Remember preferences</label>
           </div>
         </div>
-        <div class="form-group">
-          <label>Conversation Scope</label>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Boundaries</div>
           <div class="checkbox-group">
             <label><input type="checkbox" id="ai-booking-only"> Booking topics only</label>
             <label><input type="checkbox" id="ai-share-pricing" checked> Share pricing info</label>
           </div>
+          <div class="ai-indent form-group" id="ai-pricing-row">
+            <label>Pricing Info</label>
+            <input type="text" id="ai-pricing-info" placeholder="e.g. Haircut $35, Color $80">
+          </div>
         </div>
-        <div class="form-group">
-          <label>Pricing Info</label>
-          <input type="text" id="ai-pricing-info" placeholder="e.g. Haircut $35, Color $80">
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Custom Instructions</div>
+          <div class="form-group" style="margin-bottom:0">
+            <textarea id="ai-custom-instructions" placeholder="Additional rules for the AI agent..."></textarea>
+          </div>
         </div>
-        <div class="form-group">
-          <label>Custom Instructions</label>
-          <textarea id="ai-custom-instructions" placeholder="Additional rules for the AI..."></textarea>
-        </div>
+
         <button class="save-btn" onclick="saveAiPreferences()">Save AI Personality</button>
       </div>
     </div>
@@ -1283,6 +1320,8 @@ function loadAiPreferences(raw) {
   document.getElementById('ai-booking-only').checked = !!bnd.booking_only;
   document.getElementById('ai-share-pricing').checked = bnd.share_pricing !== false;
   document.getElementById('ai-pricing-info').value = bnd.pricing_info || '';
+  document.getElementById('ai-pricing-row').style.display =
+    document.getElementById('ai-share-pricing').checked ? '' : 'none';
   document.getElementById('ai-custom-instructions').value = p.custom_instructions || '';
 }
 
@@ -1314,6 +1353,10 @@ function collectAiPreferences() {
     custom_instructions: document.getElementById('ai-custom-instructions').value.trim(),
   });
 }
+
+document.getElementById('ai-share-pricing').addEventListener('change', function() {
+  document.getElementById('ai-pricing-row').style.display = this.checked ? '' : 'none';
+});
 
 async function saveAiPreferences() {
   try {
