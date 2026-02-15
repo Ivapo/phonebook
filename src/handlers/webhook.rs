@@ -132,9 +132,10 @@ pub async fn sms_webhook(
         }
     }
 
-    // 2. Increment rate limit counter
+    // 2. Increment rate limit counter + monthly activity
     let message_count = {
         let db = state.db.lock().unwrap();
+        let _ = queries::increment_monthly_received(&db);
         queries::increment_message_count(&db, &from).unwrap_or(1)
     };
 
@@ -174,6 +175,9 @@ pub async fn sms_webhook(
         let reply = handle_admin_command(&state, &body).await;
         if let Err(e) = state.messaging.send_message(&from, &reply).await {
             tracing::error!(error = %e, "failed to send admin reply");
+        } else {
+            let db = state.db.lock().unwrap();
+            let _ = queries::increment_monthly_sent(&db);
         }
         return twiml_response();
     }
@@ -183,12 +187,18 @@ pub async fn sms_webhook(
         Ok(reply) => {
             if let Err(e) = state.messaging.send_message(&from, &reply).await {
                 tracing::error!(error = %e, "failed to send reply");
+            } else {
+                let db = state.db.lock().unwrap();
+                let _ = queries::increment_monthly_sent(&db);
             }
         }
         Err(e) => {
             tracing::error!(error = %e, from = %from, "conversation processing failed");
             let fallback = "Sorry, I'm having trouble right now. Please try again in a moment.";
-            let _ = state.messaging.send_message(&from, fallback).await;
+            if state.messaging.send_message(&from, fallback).await.is_ok() {
+                let db = state.db.lock().unwrap();
+                let _ = queries::increment_monthly_sent(&db);
+            }
         }
     }
 
@@ -277,6 +287,9 @@ async fn notify_owner(state: &Arc<AppState>, message: &str, phone: Option<&str>)
         .await
     {
         tracing::error!(error = %e, "failed to notify owner");
+    } else {
+        let db = state.db.lock().unwrap();
+        let _ = queries::increment_monthly_sent(&db);
     }
 }
 

@@ -135,6 +135,44 @@ pub async fn get_bookings(
     Ok(Json(response))
 }
 
+// GET /api/admin/activity
+#[derive(Serialize)]
+pub struct ActivityResponse {
+    month: String,
+    messages_received: i64,
+    messages_sent: i64,
+    bookings_created: i64,
+    bookings_cancelled: i64,
+    bookings_rescheduled: i64,
+}
+
+pub async fn get_activity(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<ActivityResponse>, Response> {
+    check_auth(&headers, &state.config.admin_token)?;
+
+    let activity = {
+        let db = state.db.lock().unwrap();
+        queries::get_current_monthly_activity(&db).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        })?
+    };
+
+    Ok(Json(ActivityResponse {
+        month: activity.month,
+        messages_received: activity.messages_received,
+        messages_sent: activity.messages_sent,
+        bookings_created: activity.bookings_created,
+        bookings_cancelled: activity.bookings_cancelled,
+        bookings_rescheduled: activity.bookings_rescheduled,
+    }))
+}
+
 // POST /api/admin/bookings/:id/cancel
 pub async fn cancel_booking(
     State(state): State<Arc<AppState>>,
@@ -145,13 +183,17 @@ pub async fn cancel_booking(
 
     let updated = {
         let db = state.db.lock().unwrap();
-        queries::update_booking_status(&db, &id, &BookingStatus::Cancelled).map_err(|e| {
+        let result = queries::update_booking_status(&db, &id, &BookingStatus::Cancelled).map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(serde_json::json!({"error": e.to_string()})),
             )
                 .into_response()
-        })?
+        })?;
+        if result {
+            let _ = queries::increment_monthly_cancelled(&db);
+        }
+        result
     };
 
     if updated {

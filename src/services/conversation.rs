@@ -221,6 +221,7 @@ pub async fn process_message(
                 {
                     let db = state.db.lock().unwrap();
                     queries::create_booking(&db, &booking)?;
+                    let _ = queries::increment_monthly_bookings(&db);
                 }
 
                 // Notify owner
@@ -263,6 +264,7 @@ pub async fn process_message(
                         &next_booking.id,
                         &BookingStatus::Cancelled,
                     )?;
+                    let _ = queries::increment_monthly_cancelled(&db);
                     Some(format!(
                         "Cancelled: {} for {} ({}) at {}",
                         next_booking.customer_name.as_deref().unwrap_or("Unknown"),
@@ -296,7 +298,7 @@ pub async fn process_message(
             };
 
             if let Some(next_booking) = bookings.into_iter().next() {
-                // Cancel old booking
+                // Cancel old booking for rescheduling
                 {
                     let db = state.db.lock().unwrap();
                     queries::update_booking_status(
@@ -304,6 +306,7 @@ pub async fn process_message(
                         &next_booking.id,
                         &BookingStatus::Cancelled,
                     )?;
+                    let _ = queries::increment_monthly_rescheduled(&db);
                 }
 
                 // Start new booking flow with existing info
@@ -512,5 +515,8 @@ async fn notify_owner(state: &Arc<AppState>, message: &str, phone: Option<&str>)
         .await
     {
         tracing::error!(error = %e, "failed to notify owner");
+    } else {
+        let db = state.db.lock().unwrap();
+        let _ = queries::increment_monthly_sent(&db);
     }
 }

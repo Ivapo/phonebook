@@ -408,6 +408,103 @@ fn current_hour_window() -> String {
     Utc::now().format("%Y-%m-%d %H:00:00").to_string()
 }
 
+fn current_month() -> String {
+    Utc::now().format("%Y-%m").to_string()
+}
+
+// ── Monthly Activity ──
+
+pub struct MonthlyActivity {
+    pub month: String,
+    pub messages_received: i64,
+    pub messages_sent: i64,
+    pub bookings_created: i64,
+    pub bookings_cancelled: i64,
+    pub bookings_rescheduled: i64,
+}
+
+pub fn increment_monthly_received(conn: &Connection) -> anyhow::Result<()> {
+    let month = current_month();
+    conn.execute(
+        "INSERT INTO monthly_activity (month, messages_received) VALUES (?1, 1)
+         ON CONFLICT(month) DO UPDATE SET messages_received = messages_received + 1",
+        params![month],
+    )?;
+    Ok(())
+}
+
+pub fn increment_monthly_sent(conn: &Connection) -> anyhow::Result<()> {
+    let month = current_month();
+    conn.execute(
+        "INSERT INTO monthly_activity (month, messages_sent) VALUES (?1, 1)
+         ON CONFLICT(month) DO UPDATE SET messages_sent = messages_sent + 1",
+        params![month],
+    )?;
+    Ok(())
+}
+
+pub fn increment_monthly_bookings(conn: &Connection) -> anyhow::Result<()> {
+    let month = current_month();
+    conn.execute(
+        "INSERT INTO monthly_activity (month, bookings_created) VALUES (?1, 1)
+         ON CONFLICT(month) DO UPDATE SET bookings_created = bookings_created + 1",
+        params![month],
+    )?;
+    Ok(())
+}
+
+pub fn increment_monthly_cancelled(conn: &Connection) -> anyhow::Result<()> {
+    let month = current_month();
+    conn.execute(
+        "INSERT INTO monthly_activity (month, bookings_cancelled) VALUES (?1, 1)
+         ON CONFLICT(month) DO UPDATE SET bookings_cancelled = bookings_cancelled + 1",
+        params![month],
+    )?;
+    Ok(())
+}
+
+pub fn increment_monthly_rescheduled(conn: &Connection) -> anyhow::Result<()> {
+    let month = current_month();
+    conn.execute(
+        "INSERT INTO monthly_activity (month, bookings_rescheduled) VALUES (?1, 1)
+         ON CONFLICT(month) DO UPDATE SET bookings_rescheduled = bookings_rescheduled + 1",
+        params![month],
+    )?;
+    Ok(())
+}
+
+pub fn get_current_monthly_activity(conn: &Connection) -> anyhow::Result<MonthlyActivity> {
+    let month = current_month();
+    let result = conn.query_row(
+        "SELECT month, messages_received, messages_sent, bookings_created, bookings_cancelled, bookings_rescheduled
+         FROM monthly_activity WHERE month = ?1",
+        params![month],
+        |row| {
+            Ok(MonthlyActivity {
+                month: row.get(0)?,
+                messages_received: row.get(1)?,
+                messages_sent: row.get(2)?,
+                bookings_created: row.get(3)?,
+                bookings_cancelled: row.get(4)?,
+                bookings_rescheduled: row.get(5)?,
+            })
+        },
+    );
+
+    match result {
+        Ok(activity) => Ok(activity),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(MonthlyActivity {
+            month,
+            messages_received: 0,
+            messages_sent: 0,
+            bookings_created: 0,
+            bookings_cancelled: 0,
+            bookings_rescheduled: 0,
+        }),
+        Err(e) => Err(e.into()),
+    }
+}
+
 // ── Users ──
 
 pub fn get_user(conn: &Connection, id: &str) -> anyhow::Result<Option<User>> {

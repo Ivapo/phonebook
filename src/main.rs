@@ -62,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/app", get(handlers::admin::app_page))
         .route("/admin", get(handlers::admin::redirect_to_app))
         .route("/api/admin/status", get(handlers::admin::get_status))
+        .route("/api/admin/activity", get(handlers::admin::get_activity))
         .route("/api/admin/bookings", get(handlers::admin::get_bookings))
         .route(
             "/api/admin/bookings/:id/cancel",

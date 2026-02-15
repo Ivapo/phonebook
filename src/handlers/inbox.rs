@@ -144,6 +144,10 @@ pub async fn send_reply(
         )
             .into_response());
     }
+    {
+        let db = state.db.lock().unwrap();
+        let _ = queries::increment_monthly_sent(&db);
+    }
 
     // Record inbox event
     record_inbox_event(&state, &phone, "owner_reply", &message);

@@ -388,6 +388,12 @@ body {
 .stat-chip .val { font-size: 1.4rem; font-weight: 700; }
 .stat-chip .lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
 
+.activity-month {
+  font-size: 0.9rem; font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
 .pause-btn {
   width: 100%; padding: 0.6rem;
   border: none; border-radius: var(--radius-sm);
@@ -632,6 +638,21 @@ body {
         <button class="pause-btn resume" id="pause-btn" onclick="togglePause()">Loading...</button>
       </div>
 
+      <!-- Monthly Activity -->
+      <div class="settings-section">
+        <h3>Monthly Activity</h3>
+        <div class="activity-month" id="activity-month">--</div>
+        <div class="stats-row">
+          <div class="stat-chip"><div class="val" id="act-recv">0</div><div class="lbl">Recv</div></div>
+          <div class="stat-chip"><div class="val" id="act-sent">0</div><div class="lbl">Sent</div></div>
+          <div class="stat-chip"><div class="val" id="act-booked">0</div><div class="lbl">Booked</div></div>
+        </div>
+        <div class="stats-row" style="margin-top:0.5rem">
+          <div class="stat-chip"><div class="val" id="act-cancel">0</div><div class="lbl">Cancel</div></div>
+          <div class="stat-chip"><div class="val" id="act-resched">0</div><div class="lbl">Resched</div></div>
+        </div>
+      </div>
+
       <!-- Blocked Numbers -->
       <div class="settings-section">
         <h3>Blocked Numbers</h3>
@@ -869,7 +890,7 @@ function switchTab(tab) {
 
   if (tab === 'inbox') updateInboxBadge();
   if (tab === 'bookings') loadBookings();
-  if (tab === 'settings') { loadStatus(); loadBlocked(); loadSettings(); }
+  if (tab === 'settings') { loadStatus(); loadActivity(); loadBlocked(); loadSettings(); }
 }
 
 /* ═══════════════════════════════════════════
@@ -909,6 +930,20 @@ async function loadStatus() {
     btn.textContent = data.paused ? 'Resume Agent' : 'Pause Agent';
     btn.className = 'pause-btn ' + (data.paused ? 'resume' : 'pause');
   } catch (e) { toast('Failed to load status: ' + e.message); }
+}
+
+async function loadActivity() {
+  try {
+    const data = await apiFetch('/api/admin/activity');
+    const d = new Date(data.month + '-01');
+    const label = d.toLocaleDateString([], { month: 'long', year: 'numeric' });
+    document.getElementById('activity-month').textContent = label;
+    document.getElementById('act-recv').textContent = data.messages_received;
+    document.getElementById('act-sent').textContent = data.messages_sent;
+    document.getElementById('act-booked').textContent = data.bookings_created;
+    document.getElementById('act-cancel').textContent = data.bookings_cancelled;
+    document.getElementById('act-resched').textContent = data.bookings_rescheduled;
+  } catch (e) { console.error('loadActivity:', e); }
 }
 
 async function togglePause() {
