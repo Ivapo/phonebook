@@ -71,7 +71,7 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] POST `/api/admin/unblock` — unblock a number
 - [x] POST `/api/admin/pause` — pause agent
 - [x] POST `/api/admin/resume` — resume agent
-- [x] GET/POST `/api/admin/settings` — business name, owner name, timezone, availability
+- [x] GET/POST `/api/admin/settings` — business name, owner name, timezone, availability, AI preferences
 
 ### Owner Inbox
 
@@ -86,6 +86,16 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 - [x] SSE stays connected across all tabs, updates inbox badge when on other tabs
 - [x] Desktop: sidebar thread list (320px) + thread view side-by-side
 - [x] Mobile: thread view overlays list, back button to return
+
+### AI Personality Preferences
+
+- [x] `AiPreferences` struct with `from_json()` / `to_prompt()` and serde defaults
+- [x] JSON column on `users` table — partial JSON works, NULL = all defaults
+- [x] Preference categories: Identity (name, disclose AI, speak as business), Tone (professional/friendly/casual), Capabilities (book/cancel/reschedule/answer questions), Returning Customers (greet by name, remember prefs), Boundaries (booking only, share pricing + pricing info), Custom Instructions (free text)
+- [x] `to_prompt()` generates personality instructions injected between system prompt and business context
+- [x] Only non-default preferences emit prompt lines (minimal additions for default config)
+- [x] Settings UI: structured inputs (text, checkboxes, radios) grouped into labeled subsections with own Save button
+- [x] JSON validation on save — returns 400 for invalid `ai_preferences`
 
 ### SMS Admin Commands (owner sends from configured phone)
 
@@ -130,7 +140,7 @@ Rust-based SMS booking agent for freelancers. Customers text a Twilio number to 
 
 ### Testing
 
-- [x] 22 unit tests (models, services, scheduling)
+- [x] 29 unit tests (models, services, scheduling, AI preferences)
 - [x] 27 integration tests (admin API, inbox API, webhook, SMS commands, calendar, rate limiting)
 
 ### Dev Chat UI
@@ -238,8 +248,9 @@ src/
     scheduling.rs    — Availability & conflict checking
     inbox.rs         — Inbox event recording + broadcast
   models/
-    mod.rs           — Booking, BookingStatus, Intent structs
+    mod.rs           — Booking, BookingStatus, Intent, AiPreferences structs
     availability.rs  — AvailabilitySlot parsing & checking
+    ai_preferences.rs — AiPreferences with from_json/to_prompt
   db/
     mod.rs           — init_db, migrations
     queries.rs       — All SQL queries
@@ -248,6 +259,7 @@ src/
     dev_chat.html    — Embedded dev chat simulator
 migrations/
   001_initial.sql    — Schema
+  003_ai_preferences.sql — AI preferences column on users
 tests/
   integration_tests.rs — Full integration test suite
 docs/
