@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Booking Agent</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiQm9va2luZyBBZ2VudCIsInNob3J0X25hbWUiOiJCb29raW5ncyIsInN0YXJ0X3VybCI6Ii9hcHAiLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZjBmMmY1IiwidGhlbWVfY29sb3IiOiIjMjU2M2ViIn0=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2563eb">
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card: #fff;
+  --border: #e5e7eb;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --success: #16a34a;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --bubble-customer: #fff;
+  --bubble-ai: #e0e7ff;
+  --bubble-owner: #dbeafe;
+  --bubble-system: #fef3c7;
+  --badge-red: #ef4444;
+  --header-h: 48px;
+  --tab-bar-h: 56px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.4;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Login ── */
+.login-overlay {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+}
+.login-box {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 90%; max-width: 340px;
+  text-align: center;
+}
+.login-box h2 { margin-bottom: 1rem; font-size: 1.25rem; }
+.login-box input {
+  width: 100%; padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+.login-box button {
+  width: 100%; padding: 0.6rem;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 1rem; cursor: pointer;
+}
+.login-box button:hover { background: var(--primary-hover); }
+.login-error { color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem; }
+
+/* ── App Shell ── */
+#app {
+  display: none;
+  flex-direction: column;
+  height: 100dvh;
+}
+#app.active { display: flex; }
+
+/* ── Header ── */
+.app-header {
+  height: var(--header-h);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.app-header h1 { font-size: 1.1rem; font-weight: 700; }
+.status-pill {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.status-pill.active { background: #dcfce7; color: #166534; }
+.status-pill.paused { background: #fef3c7; color: #92400e; }
+.sse-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.sse-dot.connected { background: #22c55e; }
+.sse-dot.disconnected { background: #ef4444; }
+.header-spacer { flex: 1; }
+.header-signout {
+  background: none; border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.header-signout:hover { color: var(--danger); }
+
+/* ── Tab Content ── */
+.tab-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+.tab-panel {
+  display: none;
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab-panel.active { display: flex; flex-direction: column; }
+
+/* ── Bottom Tab Bar ── */
+.tab-bar {
+  height: var(--tab-bar-h);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-shrink: 0;
+}
+.tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 500;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+}
+.tab-btn.active { color: var(--primary); }
+.tab-btn svg { width: 22px; height: 22px; }
+.tab-badge {
+  position: absolute;
+  top: 4px;
+  right: calc(50% - 18px);
+  background: var(--badge-red);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 16px; height: 16px;
+  border-radius: 8px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.tab-badge.visible { display: flex; }
+
+/* ── Inbox Tab ── */
+#inbox-panel {
+  flex-direction: row;
+  overflow: hidden;
+}
+#inbox-thread-list {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  flex-shrink: 0;
+}
+#inbox-thread-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.thread-item {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  gap: 0.75rem;
+  transition: background 0.15s;
+}
+.thread-item:hover { background: #f9fafb; }
+.thread-item.active { background: #eff6ff; }
+.thread-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 600; font-size: 0.95rem;
+  flex-shrink: 0;
+}
+.thread-info { flex: 1; min-width: 0; }
+.thread-phone {
+  font-weight: 600; font-size: 0.92rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-preview {
+  font-size: 0.82rem; color: var(--text-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.thread-meta {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
+}
+.thread-time { font-size: 0.72rem; color: var(--text-light); }
+.thread-unread-badge {
+  background: var(--badge-red); color: #fff;
+  font-size: 0.65rem; font-weight: 700;
+  min-width: 18px; height: 18px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+.thread-empty {
+  padding: 3rem 1rem; text-align: center; color: var(--text-muted);
+}
+
+/* Thread View */
+#inbox-thread-view {
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  display: none;
+  flex-direction: column;
+  z-index: 10;
+}
+#inbox-thread-view.open { display: flex; }
+
+.thread-view-header {
+  padding: 0.65rem 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+.back-btn {
+  background: none; border: none;
+  font-size: 1.3rem; cursor: pointer;
+  color: var(--primary); padding: 0; line-height: 1;
+}
+.thread-view-phone { font-weight: 600; font-size: 1rem; }
+
+#messages {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.75rem;
+  display: flex; flex-direction: column; gap: 6px;
+}
+
+.msg {
+  max-width: 80%; padding: 0.6rem 0.85rem;
+  border-radius: 16px; font-size: 0.9rem;
+  word-break: break-word; position: relative;
+}
+.msg-label { font-size: 0.68rem; font-weight: 600; margin-bottom: 2px; opacity: 0.7; }
+.msg-time { font-size: 0.63rem; color: var(--text-light); margin-top: 2px; }
+.msg.customer_message {
+  align-self: flex-start;
+  background: var(--bubble-customer);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.msg.ai_reply { align-self: flex-end; background: var(--bubble-ai); border-bottom-right-radius: 4px; }
+.msg.owner_reply { align-self: flex-end; background: var(--bubble-owner); border-bottom-right-radius: 4px; }
+.msg.system {
+  align-self: center; background: var(--bubble-system);
+  border-radius: 20px; font-size: 0.8rem;
+  padding: 0.35rem 0.85rem; max-width: 90%;
+}
+
+.reply-bar {
+  padding: 0.5rem; background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex; gap: 0.5rem; flex-shrink: 0;
+}
+.reply-bar input {
+  flex: 1; padding: 0.6rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 20px; font-size: 0.92rem; outline: none;
+}
+.reply-bar input:focus { border-color: var(--primary); }
+.reply-bar button {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  border: none; cursor: pointer; font-size: 1.05rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.reply-bar button:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Bookings Tab ── */
+#bookings-panel { padding: 1rem; gap: 0.75rem; }
+.bookings-filter {
+  display: flex; gap: 0.5rem; align-items: center;
+  flex-shrink: 0;
+}
+.bookings-filter label { font-size: 0.85rem; font-weight: 500; }
+.bookings-filter select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.booking-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.booking-card-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 0.35rem;
+}
+.booking-card-row:last-child { margin-bottom: 0; }
+.booking-name { font-weight: 600; font-size: 0.95rem; }
+.booking-phone { font-size: 0.82rem; color: var(--text-muted); }
+.booking-datetime { font-size: 0.85rem; }
+.booking-badge {
+  display: inline-block; padding: 0.1rem 0.5rem;
+  border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+}
+.booking-badge.confirmed { background: #dbeafe; color: #1e40af; }
+.booking-badge.pending { background: #fef3c7; color: #92400e; }
+.booking-badge.cancelled { background: #fee2e2; color: #991b1b; }
+.booking-cancel-btn {
+  background: none; border: 1px solid var(--danger); color: var(--danger);
+  padding: 0.2rem 0.6rem; border-radius: var(--radius-sm);
+  font-size: 0.78rem; cursor: pointer;
+}
+.booking-cancel-btn:hover { background: var(--danger); color: #fff; }
+.bookings-empty { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+
+/* ── Settings Tab ── */
+#settings-panel { padding: 1rem; gap: 0.75rem; }
+.settings-section {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.settings-section h3 {
+  font-size: 0.85rem; font-weight: 600;
+  text-transform: uppercase; color: var(--text-muted);
+  letter-spacing: 0.03em;
+  margin-bottom: 0.75rem;
+}
+
+/* Stats chips */
+.stats-row {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+}
+.stat-chip {
+  flex: 1; min-width: 80px;
+  text-align: center;
+  padding: 0.5rem 0.25rem;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+.stat-chip .val { font-size: 1.4rem; font-weight: 700; }
+.stat-chip .lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+
+.activity-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.activity-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  padding: 0 0.4rem 0.5rem;
+}
+.activity-table th:first-child { text-align: left; }
+.activity-table td {
+  padding: 0.35rem 0.4rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  border-top: 1px solid var(--border);
+}
+.activity-table .activity-label {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.pause-btn {
+  width: 100%; padding: 0.6rem;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.9rem; font-weight: 600;
+  cursor: pointer;
+  color: #fff;
+}
+.pause-btn.resume { background: var(--primary); }
+.pause-btn.resume:hover { background: var(--primary-hover); }
+.pause-btn.pause { background: var(--danger); }
+.pause-btn.pause:hover { background: var(--danger-hover); }
+
+/* Calendar feed */
+.feed-url-row {
+  display: flex; gap: 0.5rem;
+}
+.feed-url-row input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem; font-family: monospace;
+  background: var(--bg); color: var(--text);
+}
+.feed-url-row button {
+  padding: 0.5rem 0.85rem;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.85rem; cursor: pointer;
+  flex-shrink: 0;
+}
+.feed-url-row button:hover { background: var(--primary-hover); }
+
+/* Blocked numbers */
+.blocked-add {
+  display: flex; gap: 0.5rem; margin-bottom: 0.75rem;
+}
+.blocked-add input {
+  flex: 1; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.blocked-add button {
+  padding: 0.5rem 0.85rem;
+  background: var(--danger); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.85rem; cursor: pointer;
+}
+.blocked-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.blocked-card:last-child { border-bottom: none; }
+.blocked-info { flex: 1; }
+.blocked-phone { font-weight: 600; font-size: 0.88rem; }
+.blocked-reason { font-size: 0.78rem; color: var(--text-muted); }
+.blocked-type-badge {
+  display: inline-block; padding: 0.05rem 0.4rem;
+  border-radius: 999px; font-size: 0.65rem; font-weight: 600;
+  margin-left: 0.5rem;
+}
+.blocked-type-badge.auto { background: #f3e8ff; color: #6b21a8; }
+.blocked-type-badge.manual { background: #e5e7eb; color: #374151; }
+.unblock-btn {
+  background: none; border: 1px solid var(--primary); color: var(--primary);
+  padding: 0.2rem 0.6rem; border-radius: var(--radius-sm);
+  font-size: 0.78rem; cursor: pointer; flex-shrink: 0;
+}
+.unblock-btn:hover { background: var(--primary); color: #fff; }
+
+/* Business settings form */
+.form-group { margin-bottom: 0.75rem; }
+.form-group > label { display: block; font-size: 0.82rem; font-weight: 500; margin-bottom: 0.2rem; }
+.form-group input[type="text"],
+.form-group input[type="tel"],
+.form-group input[type="password"],
+.form-group input[type="email"],
+.form-group input[type="number"],
+.form-group select {
+  width: 100%; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-family: inherit;
+}
+.form-group input:disabled { background: #f3f4f6; color: var(--text-muted); }
+
+/* Availability slots */
+.slot-row {
+  display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem;
+}
+.slot-row select, .slot-row input[type="time"] {
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+}
+.slot-remove {
+  background: none; border: none; color: var(--danger);
+  font-size: 1rem; cursor: pointer; padding: 0 0.3rem;
+}
+.add-slot-btn {
+  background: none; border: 1px solid var(--primary); color: var(--primary);
+  padding: 0.3rem 0.75rem; border-radius: var(--radius-sm);
+  font-size: 0.8rem; cursor: pointer; margin-top: 0.25rem;
+}
+.add-slot-btn:hover { background: var(--primary); color: #fff; }
+.save-btn {
+  width: 100%; padding: 0.6rem;
+  background: var(--primary); color: #fff;
+  border: none; border-radius: var(--radius-sm);
+  font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; margin-top: 0.5rem;
+}
+.save-btn:hover { background: var(--primary-hover); }
+
+/* AI Personality form elements */
+.form-group textarea {
+  width: 100%; padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-family: inherit;
+  resize: vertical; min-height: 60px;
+}
+.radio-group, .checkbox-group {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  padding: 0.35rem 0;
+}
+.radio-group label, .checkbox-group label {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-size: 0.85rem; font-weight: 400; cursor: pointer;
+  margin-bottom: 0; line-height: 1.3;
+}
+.radio-group input[type="radio"],
+.checkbox-group input[type="checkbox"] {
+  width: 16px; height: 16px; margin: 0;
+  flex-shrink: 0; accent-color: var(--primary);
+}
+.coming-soon {
+  display: inline-block; padding: 0.05rem 0.4rem;
+  background: #e5e7eb; color: #6b7280;
+  border-radius: 999px; font-size: 0.6rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.03em;
+  vertical-align: middle; margin-left: 0.25rem;
+}
+.ai-subsection {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.ai-subsection:last-of-type { border-bottom: none; padding-bottom: 0; }
+.ai-subsection:first-of-type { padding-top: 0; }
+.ai-subsection-label {
+  font-size: 0.78rem; font-weight: 600; color: var(--text-muted);
+  margin-bottom: 0.5rem; text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.ai-indent {
+  margin-left: 1.6rem; margin-top: 0.35rem;
+}
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: calc(var(--tab-bar-h) + 12px); left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937; color: #fff;
+  padding: 0.6rem 1.25rem; border-radius: 20px;
+  font-size: 0.85rem; z-index: 300;
+  opacity: 0; transition: opacity 0.3s;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+
+/* ── Desktop ── */
+@media (min-width: 640px) {
+  #inbox-panel.active { flex-direction: row; }
+  #inbox-thread-list {
+    width: 320px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #inbox-thread-view {
+    position: relative;
+    display: flex;
+    flex: 1;
+    z-index: auto;
+  }
+  #inbox-thread-view .back-btn { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-overlay" id="login">
+  <div class="login-box">
+    <h2>Booking Agent</h2>
+    <input type="password" id="token-input" placeholder="Admin token" autocomplete="off">
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <!-- Header -->
+  <div class="app-header">
+    <h1>Booking Agent</h1>
+    <span class="status-pill" id="status-pill" onclick="togglePause()" title="Click to pause/resume">--</span>
+    <span class="sse-dot disconnected" id="sse-dot" title="SSE connection"></span>
+    <span class="header-spacer"></span>
+    <button class="header-signout" onclick="doLogout()">Sign out</button>
+  </div>
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+    <!-- Inbox -->
+    <div class="tab-panel active" id="inbox-panel">
+      <div id="inbox-thread-list">
+        <div id="inbox-thread-list-scroll">
+          <div class="thread-empty">No conversations yet</div>
+        </div>
+      </div>
+      <div id="inbox-thread-view">
+        <div class="thread-view-header">
+          <button class="back-btn" onclick="closeThread()">&larr;</button>
+          <span class="thread-view-phone" id="current-phone">Select a conversation</span>
+        </div>
+        <div id="messages"></div>
+        <div class="reply-bar" id="reply-bar" style="display:none">
+          <input type="text" id="reply-input" placeholder="Type a reply..." autocomplete="off">
+          <button onclick="sendReply()" id="send-btn" disabled>&#9654;</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookings -->
+    <div class="tab-panel" id="bookings-panel">
+      <div class="bookings-filter">
+        <label>Filter:</label>
+        <select id="booking-filter" onchange="loadBookings()">
+          <option value="">All</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Pending</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div id="bookings-list">
+        <div class="bookings-empty">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Contacts -->
+    <div class="tab-panel" id="contacts-panel" style="padding:1rem;gap:0.75rem;">
+      <div id="contacts-list">
+        <div class="bookings-empty">No customers yet</div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="tab-panel" id="settings-panel">
+      <!-- Pause/Resume -->
+      <button class="pause-btn resume" id="pause-btn" onclick="togglePause()">Loading...</button>
+
+      <!-- Monthly Activity -->
+      <div class="settings-section">
+        <h3>Monthly Activity</h3>
+        <table class="activity-table" id="activity-table">
+          <thead><tr><th></th></tr></thead>
+          <tbody>
+            <tr><td class="activity-label">SMS Received</td></tr>
+            <tr><td class="activity-label">SMS Sent</td></tr>
+            <tr><td class="activity-label">Bookings</td></tr>
+            <tr><td class="activity-label">Cancellations</td></tr>
+            <tr><td class="activity-label">Reschedules</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Calendar Feed -->
+      <div class="settings-section">
+        <h3>Calendar Feed</h3>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem">Subscribe to this URL in your phone's calendar app to see all bookings automatically.</p>
+        <div class="feed-url-row">
+          <input type="text" id="feed-url" readonly>
+          <button onclick="copyFeedUrl()">Copy</button>
+        </div>
+      </div>
+
+      <!-- Blocked Numbers -->
+      <div class="settings-section">
+        <h3>Blocked Numbers</h3>
+        <div class="blocked-add">
+          <input type="tel" id="block-phone-input" placeholder="+1234567890">
+          <button onclick="doBlock()">Block</button>
+        </div>
+        <div id="blocked-list"></div>
+      </div>
+
+      <!-- Business Settings -->
+      <div class="settings-section">
+        <h3>Business Settings</h3>
+        <div class="form-group">
+          <label>Business Name</label>
+          <input type="text" id="sett-business-name">
+        </div>
+        <div class="form-group">
+          <label>Owner Name</label>
+          <input type="text" id="sett-owner-name">
+        </div>
+        <div class="form-group">
+          <label>Owner Phone</label>
+          <input type="tel" id="sett-owner-phone" disabled>
+        </div>
+        <div class="form-group">
+          <label>Twilio Number</label>
+          <input type="tel" id="sett-twilio-number" disabled>
+        </div>
+        <div class="form-group">
+          <label>Timezone</label>
+          <input type="text" id="sett-timezone" placeholder="e.g. America/New_York">
+        </div>
+        <div class="form-group">
+          <label>Availability</label>
+          <div id="availability-slots"></div>
+          <button type="button" class="add-slot-btn" onclick="addSlot()">+ Add Slot</button>
+        </div>
+        <button class="save-btn" onclick="saveSettings()">Save Settings</button>
+      </div>
+
+      <!-- AI Personality -->
+      <div class="settings-section">
+        <h3>AI Personality</h3>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Identity</div>
+          <div class="form-group">
+            <label>Agent Name</label>
+            <input type="text" id="ai-agent-name" placeholder="e.g. Sophie, Alex">
+          </div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="ai-disclose-ai" checked> Disclose that it's an AI</label>
+            <label><input type="checkbox" id="ai-act-as-business"> Speak as business owner (uses I/my)</label>
+          </div>
+        </div>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Tone</div>
+          <div class="radio-group">
+            <label><input type="radio" name="ai-tone" value="professional" checked> Professional</label>
+            <label><input type="radio" name="ai-tone" value="friendly"> Friendly</label>
+            <label><input type="radio" name="ai-tone" value="casual"> Casual</label>
+          </div>
+        </div>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Capabilities</div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="ai-can-book" checked> Book appointments</label>
+            <label><input type="checkbox" id="ai-can-cancel" checked> Cancel appointments</label>
+            <label><input type="checkbox" id="ai-can-reschedule" checked> Reschedule appointments</label>
+            <label><input type="checkbox" id="ai-can-answer" checked> Answer general questions</label>
+            <label><input type="checkbox" id="ai-can-reminders" disabled> Send reminders <span class="coming-soon">coming soon</span></label>
+          </div>
+        </div>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Returning Customers</div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="ai-greet-name" checked> Greet by name</label>
+            <label><input type="checkbox" id="ai-remember-prefs"> Remember preferences</label>
+          </div>
+        </div>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Boundaries</div>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="ai-booking-only"> Booking topics only</label>
+            <label><input type="checkbox" id="ai-share-pricing" checked> Share pricing info</label>
+          </div>
+          <div class="ai-indent form-group" id="ai-pricing-row">
+            <label>Pricing Info</label>
+            <input type="text" id="ai-pricing-info" placeholder="e.g. Haircut $35, Color $80">
+          </div>
+        </div>
+
+        <div class="ai-subsection">
+          <div class="ai-subsection-label">Custom Instructions</div>
+          <div class="form-group" style="margin-bottom:0">
+            <textarea id="ai-custom-instructions" placeholder="Additional rules for the AI agent..."></textarea>
+          </div>
+        </div>
+
+        <button class="save-btn" onclick="saveAiPreferences()">Save AI Personality</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Tab Bar -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="inbox" onclick="switchTab('inbox')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Inbox</span>
+      <span class="tab-badge" id="inbox-badge"></span>
+    </button>
+    <button class="tab-btn" data-tab="bookings" onclick="switchTab('bookings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Bookings</span>
+    </button>
+    <button class="tab-btn" data-tab="contacts" onclick="switchTab('contacts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>Contacts</span>
+    </button>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════
+   State
+   ═══════════════════════════════════════════ */
+let TOKEN = '';
+let currentTab = 'inbox';
+let currentPhone = null;
+let threads = [];
+let lastEventId = 0;
+let eventSource = null;
+let isPaused = false;
+
+/* ═══════════════════════════════════════════
+   Token migration + init
+   ═══════════════════════════════════════════ */
+(function migrateToken() {
+  TOKEN = localStorage.getItem('app_token') || '';
+  if (!TOKEN) {
+    TOKEN = localStorage.getItem('inbox_token') || localStorage.getItem('admin_token') || '';
+    if (TOKEN) {
+      localStorage.setItem('app_token', TOKEN);
+      localStorage.removeItem('inbox_token');
+      localStorage.removeItem('admin_token');
+    }
+  }
+})();
+
+/* ═══════════════════════════════════════════
+   API
+   ═══════════════════════════════════════════ */
+function authHeaders() {
+  return { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
+}
+
+async function apiFetch(path, opts = {}) {
+  opts.headers = Object.assign(authHeaders(), opts.headers || {});
+  const res = await fetch(path, opts);
+  if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Request failed'); }
+  return res.json();
+}
+
+function toast(msg, ms) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), ms || 3000);
+}
+
+/* ═══════════════════════════════════════════
+   Auth
+   ═══════════════════════════════════════════ */
+function doLogin() {
+  const input = document.getElementById('token-input');
+  const val = input.value.trim();
+  if (!val) return;
+  TOKEN = val;
+  verifyToken();
+}
+
+async function verifyToken() {
+  try {
+    await apiFetch('/api/admin/status');
+    localStorage.setItem('app_token', TOKEN);
+    localStorage.removeItem('inbox_token');
+    localStorage.removeItem('admin_token');
+    showApp();
+  } catch {
+    document.getElementById('login-error').textContent = 'Invalid token';
+    TOKEN = '';
+    localStorage.removeItem('app_token');
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('app_token');
+  TOKEN = '';
+  if (eventSource) { eventSource.close(); eventSource = null; }
+  location.reload();
+}
+
+document.getElementById('token-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+/* ═══════════════════════════════════════════
+   App init
+   ═══════════════════════════════════════════ */
+function showApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  loadStatus();
+  loadThreads();
+  connectSSE();
+}
+
+/* ═══════════════════════════════════════════
+   Tab switching
+   ═══════════════════════════════════════════ */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tab + '-panel').classList.add('active');
+  document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
+
+  if (tab === 'inbox') updateInboxBadge();
+  if (tab === 'bookings') loadBookings();
+  if (tab === 'contacts') loadContacts();
+  if (tab === 'settings') { loadStatus(); loadActivity(); updateFeedUrl(); loadBlocked(); loadSettings(); }
+}
+
+/* ═══════════════════════════════════════════
+   Inbox badge
+   ═══════════════════════════════════════════ */
+function updateInboxBadge() {
+  const badge = document.getElementById('inbox-badge');
+  if (currentTab === 'inbox') {
+    badge.classList.remove('visible');
+    return;
+  }
+  const total = threads.reduce((s, t) => s + (t.unread_count || 0), 0);
+  if (total > 0) {
+    badge.textContent = total > 99 ? '99+' : total;
+    badge.classList.add('visible');
+  } else {
+    badge.classList.remove('visible');
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Status / Header pill
+   ═══════════════════════════════════════════ */
+async function loadStatus() {
+  try {
+    const data = await apiFetch('/api/admin/status');
+    isPaused = data.paused;
+    const pill = document.getElementById('status-pill');
+    pill.textContent = data.paused ? 'Paused' : 'Active';
+    pill.className = 'status-pill ' + (data.paused ? 'paused' : 'active');
+
+    const btn = document.getElementById('pause-btn');
+    btn.textContent = data.paused ? 'Resume Agent' : 'Pause Agent';
+    btn.className = 'pause-btn ' + (data.paused ? 'resume' : 'pause');
+  } catch (e) { toast('Failed to load status: ' + e.message); }
+}
+
+async function loadActivity() {
+  try {
+    const months = await apiFetch('/api/admin/activity');
+    const labels = months.map(m => {
+      const d = new Date(m.month + '-01');
+      return d.toLocaleDateString([], { month: 'short', year: 'numeric' });
+    });
+    const rows = [
+      { label: 'SMS Received', key: 'messages_received' },
+      { label: 'SMS Sent', key: 'messages_sent' },
+      { label: 'Bookings', key: 'bookings_created' },
+      { label: 'Cancellations', key: 'bookings_cancelled' },
+      { label: 'Reschedules', key: 'bookings_rescheduled' },
+    ];
+    const table = document.getElementById('activity-table');
+    const headerCells = labels.map(l => `<th>${escapeHtml(l)}</th>`).join('');
+    const bodyRows = rows.map(r => {
+      const cells = months.map(m => `<td>${m[r.key]}</td>`).join('');
+      return `<tr><td class="activity-label">${r.label}</td>${cells}</tr>`;
+    }).join('');
+    table.innerHTML = `<thead><tr><th></th>${headerCells}</tr></thead><tbody>${bodyRows}</tbody>`;
+  } catch (e) { console.error('loadActivity:', e); }
+}
+
+async function togglePause() {
+  try {
+    await apiFetch(isPaused ? '/api/admin/resume' : '/api/admin/pause', { method: 'POST' });
+    toast(isPaused ? 'Agent resumed' : 'Agent paused');
+    loadStatus();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   Inbox — Threads
+   ═══════════════════════════════════════════ */
+async function loadThreads() {
+  try {
+    threads = await apiFetch('/api/inbox/threads');
+    renderThreads();
+    updateInboxBadge();
+  } catch (e) { console.error('loadThreads:', e); }
+}
+
+function renderThreads() {
+  const el = document.getElementById('inbox-thread-list-scroll');
+  if (!threads.length) {
+    el.innerHTML = '<div class="thread-empty">No conversations yet</div>';
+    return;
+  }
+  el.innerHTML = threads.map(t => {
+    const active = t.phone === currentPhone ? ' active' : '';
+    const initials = t.phone.slice(-2);
+    const badge = t.unread_count > 0 ? `<span class="thread-unread-badge">${t.unread_count}</span>` : '';
+    const time = relativeTime(t.last_activity);
+    const preview = escapeHtml(truncate(t.last_message || '', 45));
+    return `<div class="thread-item${active}" onclick="openThread('${escapeAttr(t.phone)}')">
+      <div class="thread-avatar">${initials}</div>
+      <div class="thread-info">
+        <div class="thread-phone">${escapeHtml(t.phone)}</div>
+        <div class="thread-preview">${preview}</div>
+      </div>
+      <div class="thread-meta">
+        <span class="thread-time">${time}</span>
+        ${badge}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════
+   Inbox — Thread View
+   ═══════════════════════════════════════════ */
+async function openThread(phone) {
+  currentPhone = phone;
+  document.getElementById('inbox-thread-view').classList.add('open');
+  document.getElementById('current-phone').textContent = phone;
+  document.getElementById('reply-bar').style.display = 'flex';
+  document.getElementById('reply-input').focus();
+  renderThreads();
+
+  try {
+    const events = await apiFetch(`/api/inbox/thread/${encodeURIComponent(phone)}`);
+    renderMessages(events);
+    apiFetch(`/api/inbox/thread/${encodeURIComponent(phone)}/read`, { method: 'POST' }).catch(() => {});
+    const thread = threads.find(t => t.phone === phone);
+    if (thread) { thread.unread_count = 0; renderThreads(); updateInboxBadge(); }
+  } catch (e) { console.error('openThread:', e); }
+}
+
+function closeThread() {
+  currentPhone = null;
+  document.getElementById('inbox-thread-view').classList.remove('open');
+  document.getElementById('reply-bar').style.display = 'none';
+  renderThreads();
+}
+
+function renderMessages(events) {
+  const el = document.getElementById('messages');
+  el.innerHTML = events.map(e => {
+    if (e.kind === 'system') {
+      return `<div class="msg system">${escapeHtml(e.content)}</div>`;
+    }
+    const label = e.kind === 'ai_reply' ? 'AI' : e.kind === 'owner_reply' ? 'You' : '';
+    const labelHtml = label ? `<div class="msg-label">${label}</div>` : '';
+    const time = formatTime(e.created_at);
+    return `<div class="msg ${e.kind}">
+      ${labelHtml}
+      <div>${escapeHtml(e.content)}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendMessage(event) {
+  const el = document.getElementById('messages');
+  let html;
+  if (event.kind === 'system') {
+    html = `<div class="msg system">${escapeHtml(event.content)}</div>`;
+  } else {
+    const label = event.kind === 'ai_reply' ? 'AI' : event.kind === 'owner_reply' ? 'You' : '';
+    const labelHtml = label ? `<div class="msg-label">${label}</div>` : '';
+    const time = formatTime(event.created_at);
+    html = `<div class="msg ${event.kind}">
+      ${labelHtml}
+      <div>${escapeHtml(event.content)}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  }
+  el.insertAdjacentHTML('beforeend', html);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ═══════════════════════════════════════════
+   Inbox — Reply
+   ═══════════════════════════════════════════ */
+const replyInput = document.getElementById('reply-input');
+const sendBtn = document.getElementById('send-btn');
+
+replyInput.addEventListener('input', () => { sendBtn.disabled = !replyInput.value.trim(); });
+replyInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey && replyInput.value.trim()) {
+    e.preventDefault();
+    sendReply();
+  }
+});
+
+async function sendReply() {
+  if (!currentPhone || !replyInput.value.trim()) return;
+  const msg = replyInput.value.trim();
+  replyInput.value = '';
+  sendBtn.disabled = true;
+  try {
+    await apiFetch('/api/inbox/reply', {
+      method: 'POST',
+      body: JSON.stringify({ phone: currentPhone, message: msg }),
+    });
+  } catch (e) { console.error('sendReply:', e); toast('Failed to send: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   SSE
+   ═══════════════════════════════════════════ */
+function connectSSE() {
+  if (eventSource) eventSource.close();
+  const url = `/api/inbox/events?token=${encodeURIComponent(TOKEN)}&last_id=${lastEventId}`;
+  eventSource = new EventSource(url);
+
+  eventSource.addEventListener('inbox_event', e => {
+    try {
+      const event = JSON.parse(e.data);
+      if (event.id > lastEventId) lastEventId = event.id;
+      handleInboxEvent(event);
+    } catch (err) { console.error('SSE parse:', err); }
+  });
+
+  eventSource.onopen = () => {
+    document.getElementById('sse-dot').className = 'sse-dot connected';
+  };
+  eventSource.onerror = () => {
+    document.getElementById('sse-dot').className = 'sse-dot disconnected';
+    eventSource.close();
+    setTimeout(connectSSE, 3000);
+  };
+}
+
+function handleInboxEvent(event) {
+  let thread = threads.find(t => t.phone === event.phone);
+  if (thread) {
+    thread.last_message = event.content;
+    thread.last_kind = event.kind;
+    thread.last_activity = event.created_at;
+    if (event.phone !== currentPhone || currentTab !== 'inbox') {
+      thread.unread_count = (thread.unread_count || 0) + 1;
+    }
+    threads = [thread, ...threads.filter(t => t.phone !== event.phone)];
+  } else {
+    threads.unshift({
+      phone: event.phone,
+      last_message: event.content,
+      last_kind: event.kind,
+      last_activity: event.created_at,
+      unread_count: (event.phone === currentPhone && currentTab === 'inbox') ? 0 : 1,
+    });
+  }
+  renderThreads();
+  updateInboxBadge();
+
+  if (event.phone === currentPhone && currentTab === 'inbox') {
+    appendMessage(event);
+    apiFetch(`/api/inbox/thread/${encodeURIComponent(event.phone)}/read`, { method: 'POST' }).catch(() => {});
+  }
+}
+
+/* ═══════════════════════════════════════════
+   Bookings
+   ═══════════════════════════════════════════ */
+async function loadBookings() {
+  const filter = document.getElementById('booking-filter').value;
+  const qs = filter ? '?status=' + filter : '';
+  try {
+    const bookings = await apiFetch('/api/admin/bookings' + qs);
+    const el = document.getElementById('bookings-list');
+    if (!bookings.length) {
+      el.innerHTML = '<div class="bookings-empty">No bookings found</div>';
+      return;
+    }
+    el.innerHTML = bookings.map(b => {
+      const dt = new Date(b.date_time.replace(' ', 'T') + 'Z');
+      const dateStr = dt.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const cancelBtn = b.status !== 'cancelled'
+        ? `<button class="booking-cancel-btn" onclick="cancelBooking('${b.id}')">Cancel</button>`
+        : '';
+      return `<div class="booking-card">
+        <div class="booking-card-row">
+          <span class="booking-name">${escapeHtml(b.customer_name || 'Unknown')}</span>
+          <span class="booking-badge ${b.status}">${b.status}</span>
+        </div>
+        <div class="booking-card-row">
+          <span class="booking-phone">${escapeHtml(b.customer_phone)}</span>
+          ${cancelBtn}
+        </div>
+        <div class="booking-card-row">
+          <span class="booking-datetime">${dateStr} at ${timeStr}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { toast('Failed to load bookings: ' + e.message); }
+}
+
+async function cancelBooking(id) {
+  if (!confirm('Cancel this booking?')) return;
+  try {
+    await apiFetch('/api/admin/bookings/' + id + '/cancel', { method: 'POST' });
+    toast('Booking cancelled');
+    loadBookings();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   Contacts
+   ═══════════════════════════════════════════ */
+async function loadContacts() {
+  try {
+    const contacts = await apiFetch('/api/admin/contacts');
+    const el = document.getElementById('contacts-list');
+    if (!contacts.length) {
+      el.innerHTML = '<div class="bookings-empty">No customers yet</div>';
+      return;
+    }
+    el.innerHTML = contacts.map(c => {
+      const name = c.name || c.phone;
+      const lastBooking = c.last_booking
+        ? new Date(c.last_booking.replace(' ', 'T') + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'None';
+      const firstSeen = new Date(c.first_seen + 'Z').toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      return `<div class="booking-card">
+        <div class="booking-card-row">
+          <span class="booking-name">${escapeHtml(name)}</span>
+          <span class="booking-badge confirmed">${c.total_bookings} booking${c.total_bookings !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="booking-card-row">
+          <span class="booking-phone">${escapeHtml(c.phone)}</span>
+        </div>
+        <div class="booking-card-row">
+          <span class="booking-datetime">Last booking: ${lastBooking}</span>
+          <span style="font-size:0.82rem;color:var(--text-muted)">Since ${firstSeen}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { toast('Failed to load contacts: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   Blocked Numbers
+   ═══════════════════════════════════════════ */
+function updateFeedUrl() {
+  const base = location.origin;
+  document.getElementById('feed-url').value = `${base}/calendar/feed.ics?token=${encodeURIComponent(TOKEN)}`;
+}
+
+function copyFeedUrl() {
+  const input = document.getElementById('feed-url');
+  navigator.clipboard.writeText(input.value).then(
+    () => toast('URL copied'),
+    () => { input.select(); document.execCommand('copy'); toast('URL copied'); }
+  );
+}
+
+async function loadBlocked() {
+  try {
+    const blocked = await apiFetch('/api/admin/blocked');
+    const el = document.getElementById('blocked-list');
+    if (!blocked.length) {
+      el.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;padding:0.5rem 0">No blocked numbers</div>';
+      return;
+    }
+    el.innerHTML = blocked.map(b => {
+      const typeBadge = b.is_auto
+        ? '<span class="blocked-type-badge auto">auto</span>'
+        : '<span class="blocked-type-badge manual">manual</span>';
+      return `<div class="blocked-card">
+        <div class="blocked-info">
+          <span class="blocked-phone">${escapeHtml(b.phone)}</span>${typeBadge}
+          <div class="blocked-reason">${escapeHtml(b.reason || '')}</div>
+        </div>
+        <button class="unblock-btn" onclick="doUnblock('${escapeAttr(b.phone)}')">Unblock</button>
+      </div>`;
+    }).join('');
+  } catch (e) { toast('Failed to load blocked: ' + e.message); }
+}
+
+async function doBlock() {
+  const input = document.getElementById('block-phone-input');
+  const phone = input.value.trim();
+  if (!phone) return;
+  try {
+    await apiFetch('/api/admin/block', {
+      method: 'POST',
+      body: JSON.stringify({ phone, reason: 'blocked via admin UI' })
+    });
+    input.value = '';
+    toast('Number blocked');
+    loadBlocked();
+    loadStatus();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+async function doUnblock(phone) {
+  try {
+    await apiFetch('/api/admin/unblock', {
+      method: 'POST',
+      body: JSON.stringify({ phone })
+    });
+    toast('Number unblocked');
+    loadBlocked();
+    loadStatus();
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   Settings
+   ═══════════════════════════════════════════ */
+async function loadSettings() {
+  try {
+    const s = await apiFetch('/api/admin/settings');
+    document.getElementById('sett-business-name').value = s.business_name || '';
+    document.getElementById('sett-owner-name').value = s.owner_name || '';
+    document.getElementById('sett-owner-phone').value = s.owner_phone || '';
+    document.getElementById('sett-twilio-number').value = s.twilio_phone_number || '';
+    document.getElementById('sett-timezone').value = s.timezone || '';
+    loadSlots(s.availability || '');
+    loadAiPreferences(s.ai_preferences || '');
+  } catch (e) { toast('Failed to load settings: ' + e.message); }
+}
+
+async function saveSettings() {
+  try {
+    await apiFetch('/api/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify({
+        business_name: document.getElementById('sett-business-name').value,
+        owner_name: document.getElementById('sett-owner-name').value,
+        timezone: document.getElementById('sett-timezone').value,
+        availability: collectSlots()
+      })
+    });
+    toast('Settings saved');
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ── Availability Slots ── */
+const DAYS = ['mon','tue','wed','thu','fri','sat','sun'];
+const DAY_LABELS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+function addSlot(day, start, end) {
+  day = day || 'mon'; start = start || '09:00'; end = end || '17:00';
+  const container = document.getElementById('availability-slots');
+  const row = document.createElement('div');
+  row.className = 'slot-row';
+
+  const sel = document.createElement('select');
+  sel.className = 'slot-day';
+  DAYS.forEach((d, i) => {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = DAY_LABELS[i];
+    if (d === day) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  const startIn = document.createElement('input');
+  startIn.type = 'time'; startIn.className = 'slot-start'; startIn.value = start;
+  const endIn = document.createElement('input');
+  endIn.type = 'time'; endIn.className = 'slot-end'; endIn.value = end;
+
+  const rm = document.createElement('button');
+  rm.type = 'button'; rm.className = 'slot-remove'; rm.textContent = '\u00d7';
+  rm.onclick = () => row.remove();
+
+  row.append(sel, startIn, endIn, rm);
+  container.appendChild(row);
+}
+
+function collectSlots() {
+  const rows = document.getElementById('availability-slots').children;
+  const slots = [];
+  for (const row of rows) {
+    const day = row.querySelector('.slot-day')?.value;
+    const start = row.querySelector('.slot-start')?.value;
+    const end = row.querySelector('.slot-end')?.value;
+    if (day && start && end) slots.push({ day, start, end });
+  }
+  return JSON.stringify({ slots });
+}
+
+function loadSlots(raw) {
+  const container = document.getElementById('availability-slots');
+  container.innerHTML = '';
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed.slots && Array.isArray(parsed.slots)) {
+      parsed.slots.forEach(s => addSlot(s.day, s.start, s.end));
+    }
+  } catch { /* not valid JSON */ }
+}
+
+/* ═══════════════════════════════════════════
+   AI Personality
+   ═══════════════════════════════════════════ */
+function loadAiPreferences(raw) {
+  let p = {};
+  if (raw) {
+    try { p = JSON.parse(raw); } catch { /* use defaults */ }
+  }
+  const id = p.identity || {};
+  const cap = p.capabilities || {};
+  const ret = p.returning_customers || {};
+  const bnd = p.boundaries || {};
+
+  document.getElementById('ai-agent-name').value = id.agent_name || '';
+  document.getElementById('ai-disclose-ai').checked = id.disclose_ai !== false;
+  document.getElementById('ai-act-as-business').checked = !!id.act_as_business;
+
+  const tone = p.tone || 'professional';
+  const radio = document.querySelector(`input[name="ai-tone"][value="${tone}"]`);
+  if (radio) radio.checked = true;
+
+  document.getElementById('ai-can-book').checked = cap.can_book !== false;
+  document.getElementById('ai-can-cancel').checked = cap.can_cancel !== false;
+  document.getElementById('ai-can-reschedule').checked = cap.can_reschedule !== false;
+  document.getElementById('ai-can-answer').checked = cap.can_answer_questions !== false;
+
+  document.getElementById('ai-greet-name').checked = ret.greet_by_name !== false;
+  document.getElementById('ai-remember-prefs').checked = !!ret.remember_preferences;
+
+  document.getElementById('ai-booking-only').checked = !!bnd.booking_only;
+  document.getElementById('ai-share-pricing').checked = bnd.share_pricing !== false;
+  document.getElementById('ai-pricing-info').value = bnd.pricing_info || '';
+  document.getElementById('ai-pricing-row').style.display =
+    document.getElementById('ai-share-pricing').checked ? '' : 'none';
+  document.getElementById('ai-custom-instructions').value = p.custom_instructions || '';
+}
+
+function collectAiPreferences() {
+  const tone = document.querySelector('input[name="ai-tone"]:checked')?.value || 'professional';
+  return JSON.stringify({
+    identity: {
+      disclose_ai: document.getElementById('ai-disclose-ai').checked,
+      agent_name: document.getElementById('ai-agent-name').value.trim(),
+      act_as_business: document.getElementById('ai-act-as-business').checked,
+    },
+    tone,
+    capabilities: {
+      can_book: document.getElementById('ai-can-book').checked,
+      can_cancel: document.getElementById('ai-can-cancel').checked,
+      can_reschedule: document.getElementById('ai-can-reschedule').checked,
+      can_answer_questions: document.getElementById('ai-can-answer').checked,
+      can_send_reminders: false,
+    },
+    returning_customers: {
+      greet_by_name: document.getElementById('ai-greet-name').checked,
+      remember_preferences: document.getElementById('ai-remember-prefs').checked,
+    },
+    boundaries: {
+      booking_only: document.getElementById('ai-booking-only').checked,
+      share_pricing: document.getElementById('ai-share-pricing').checked,
+      pricing_info: document.getElementById('ai-pricing-info').value.trim(),
+    },
+    custom_instructions: document.getElementById('ai-custom-instructions').value.trim(),
+  });
+}
+
+document.getElementById('ai-share-pricing').addEventListener('change', function() {
+  document.getElementById('ai-pricing-row').style.display = this.checked ? '' : 'none';
+});
+
+async function saveAiPreferences() {
+  try {
+    await apiFetch('/api/admin/settings', {
+      method: 'POST',
+      body: JSON.stringify({ ai_preferences: collectAiPreferences() })
+    });
+    toast('AI personality saved');
+  } catch (e) { toast('Error: ' + e.message); }
+}
+
+/* ═══════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════ */
+function escapeHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function truncate(s, n) {
+  return s.length > n ? s.slice(0, n) + '...' : s;
+}
+
+function relativeTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'Z');
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60) return 'now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h';
+  return Math.floor(diff / 86400) + 'd';
+}
+
+function formatTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'Z');
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/* ═══════════════════════════════════════════
+   Init
+   ═══════════════════════════════════════════ */
+if (TOKEN) verifyToken();
+
+/* ── PWA Service Worker ── */
+if ('serviceWorker' in navigator) {
+  const swCode = `self.addEventListener('install', e => { self.skipWaiting(); });
+self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+self.addEventListener('fetch', e => {});`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob), { scope: '/app' }).catch(() => {});
+}
+</script>
+</body>
+</html>
