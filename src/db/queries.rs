@@ -681,3 +681,53 @@ pub fn mark_thread_read(conn: &Connection, phone: &str) -> anyhow::Result<()> {
     )?;
     Ok(())
 }
+
+// ── Contacts ──
+
+pub struct ContactSummary {
+    pub phone: String,
+    pub name: Option<String>,
+    pub total_bookings: i64,
+    pub last_booking: Option<String>,
+    pub first_seen: String,
+}
+
+pub fn get_contacts(conn: &Connection, limit: i64) -> anyhow::Result<Vec<ContactSummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT
+            ie.phone,
+            b_agg.customer_name,
+            COALESCE(b_agg.total_bookings, 0),
+            b_agg.last_booking,
+            MIN(ie.created_at) as first_seen
+         FROM inbox_events ie
+         LEFT JOIN (
+             SELECT customer_phone,
+                    MAX(customer_name) as customer_name,
+                    COUNT(*) as total_bookings,
+                    MAX(date_time) as last_booking
+             FROM bookings
+             WHERE status != 'cancelled'
+             GROUP BY customer_phone
+         ) b_agg ON ie.phone = b_agg.customer_phone
+         GROUP BY ie.phone
+         ORDER BY MAX(ie.created_at) DESC
+         LIMIT ?1",
+    )?;
+
+    let rows = stmt.query_map(params![limit], |row| {
+        Ok(ContactSummary {
+            phone: row.get(0)?,
+            name: row.get(1)?,
+            total_bookings: row.get(2)?,
+            last_booking: row.get(3)?,
+            first_seen: row.get(4)?,
+        })
+    })?;
+
+    let mut contacts = vec![];
+    for row in rows {
+        contacts.push(row?);
+    }
+    Ok(contacts)
+}

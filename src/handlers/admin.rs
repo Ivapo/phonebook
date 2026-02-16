@@ -381,6 +381,47 @@ pub async fn get_settings(
     }
 }
 
+// GET /api/admin/contacts
+#[derive(Serialize)]
+pub struct ContactResponse {
+    phone: String,
+    name: Option<String>,
+    total_bookings: i64,
+    last_booking: Option<String>,
+    first_seen: String,
+}
+
+pub async fn get_contacts(
+    State(state): State<Arc<AppState>>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<ContactResponse>>, Response> {
+    check_auth(&headers, &state.config.admin_token)?;
+
+    let contacts = {
+        let db = state.db.lock().unwrap();
+        queries::get_contacts(&db, 200).map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response()
+        })?
+    };
+
+    let response: Vec<ContactResponse> = contacts
+        .into_iter()
+        .map(|c| ContactResponse {
+            phone: c.phone,
+            name: c.name,
+            total_bookings: c.total_bookings,
+            last_booking: c.last_booking,
+            first_seen: c.first_seen,
+        })
+        .collect();
+
+    Ok(Json(response))
+}
+
 // POST /api/admin/settings
 #[derive(Deserialize)]
 pub struct UpdateSettingsRequest {

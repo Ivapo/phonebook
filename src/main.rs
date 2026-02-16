@@ -68,6 +68,7 @@ async fn main() -> anyhow::Result<()> {
             "/api/admin/bookings/:id/cancel",
             post(handlers::admin::cancel_booking),
         )
+        .route("/api/admin/contacts", get(handlers::admin::get_contacts))
         .route("/api/admin/blocked", get(handlers::admin::get_blocked))
         .route("/api/admin/block", post(handlers::admin::block_number))
         .route("/api/admin/unblock", post(handlers::admin::unblock_number))
