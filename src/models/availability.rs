@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeSlot {
@@ -8,8 +9,19 @@ pub struct TimeSlot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DayOverride {
+    pub available: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub end: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Availability {
     pub slots: Vec<TimeSlot>,
+    #[serde(default)]
+    pub overrides: HashMap<String, DayOverride>,
 }
 
 impl Availability {
@@ -20,10 +32,33 @@ impl Availability {
             parse_time(&slot.start)?;
             parse_time(&slot.end)?;
         }
+        for (date_key, ovr) in &availability.overrides {
+            if chrono::NaiveDate::parse_from_str(date_key, "%Y-%m-%d").is_err() {
+                return Err(anyhow::anyhow!("invalid override date: {date_key}"));
+            }
+            if let Some(ref start) = ovr.start {
+                parse_time(start)?;
+            }
+            if let Some(ref end) = ovr.end {
+                parse_time(end)?;
+            }
+        }
         Ok(availability)
     }
 
     pub fn is_available(&self, dt: &chrono::NaiveDateTime) -> bool {
+        let date_key = dt.format("%Y-%m-%d").to_string();
+
+        if let Some(ovr) = self.overrides.get(&date_key) {
+            if !ovr.available {
+                return false;
+            }
+            if let (Some(ref start), Some(ref end)) = (&ovr.start, &ovr.end) {
+                let time = dt.format("%H:%M").to_string();
+                return time >= *start && time < *end;
+            }
+        }
+
         let weekday = dt.format("%a").to_string().to_lowercase();
         let time = dt.format("%H:%M").to_string();
 
@@ -34,6 +69,19 @@ impl Availability {
 
     pub fn end_time_within_slot(&self, dt: &chrono::NaiveDateTime, duration_minutes: i32) -> bool {
         let end_dt = *dt + chrono::Duration::minutes(duration_minutes as i64);
+        let date_key = dt.format("%Y-%m-%d").to_string();
+
+        if let Some(ovr) = self.overrides.get(&date_key) {
+            if !ovr.available {
+                return false;
+            }
+            if let (Some(ref start), Some(ref end)) = (&ovr.start, &ovr.end) {
+                let start_time = dt.format("%H:%M").to_string();
+                let end_time = end_dt.format("%H:%M").to_string();
+                return start_time >= *start && end_time <= *end;
+            }
+        }
+
         let weekday = dt.format("%a").to_string().to_lowercase();
         let start_time = dt.format("%H:%M").to_string();
         let end_time = end_dt.format("%H:%M").to_string();
@@ -193,5 +241,62 @@ mod tests {
         let json = r#"{"slots":[]}"#;
         let avail = Availability::from_json(json).unwrap();
         assert_eq!(avail.to_human_readable(), "");
+    }
+
+    #[test]
+    fn test_override_blocked_day() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}],"overrides":{"2025-06-16":{"available":false}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // 2025-06-16 is a Monday but blocked by override
+        assert!(!avail.is_available(&dt("2025-06-16 10:00")));
+    }
+
+    #[test]
+    fn test_override_custom_hours() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}],"overrides":{"2025-06-16":{"available":true,"start":"11:00","end":"15:00"}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // 2025-06-16 is a Monday with custom hours 11-15
+        assert!(!avail.is_available(&dt("2025-06-16 10:00")));
+        assert!(avail.is_available(&dt("2025-06-16 11:00")));
+        assert!(avail.is_available(&dt("2025-06-16 14:00")));
+        assert!(!avail.is_available(&dt("2025-06-16 15:00")));
+    }
+
+    #[test]
+    fn test_override_end_time_blocked() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}],"overrides":{"2025-06-16":{"available":false}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert!(!avail.end_time_within_slot(&dt("2025-06-16 10:00"), 60));
+    }
+
+    #[test]
+    fn test_override_end_time_custom() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}],"overrides":{"2025-06-16":{"available":true,"start":"11:00","end":"15:00"}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert!(avail.end_time_within_slot(&dt("2025-06-16 11:00"), 60));
+        assert!(!avail.end_time_within_slot(&dt("2025-06-16 14:30"), 60));
+    }
+
+    #[test]
+    fn test_backward_compat_no_overrides() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert!(avail.overrides.is_empty());
+        assert!(avail.is_available(&dt("2025-06-16 10:00")));
+    }
+
+    #[test]
+    fn test_invalid_override_date() {
+        let json = r#"{"slots":[],"overrides":{"not-a-date":{"available":false}}}"#;
+        assert!(Availability::from_json(json).is_err());
+    }
+
+    #[test]
+    fn test_override_available_no_custom_hours_uses_default() {
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"}],"overrides":{"2025-06-16":{"available":true}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // Override says available but no custom hours — should use default Mon slots
+        assert!(avail.is_available(&dt("2025-06-16 10:00")));
+        assert!(!avail.is_available(&dt("2025-06-16 08:00")));
     }
 }
