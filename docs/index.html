@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Agent — AI-Powered SMS Scheduling for Freelancers</title>
+<meta name="description" content="Automate appointment booking via SMS. Your clients text, AI schedules. No app downloads, no friction.">
+<meta name="theme-color" content="#2563eb">
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #dbeafe;
+  --bg: #f8fafc;
+  --card: #fff;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --border: #e5e7eb;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  line-height: 1.6;
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Layout ── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+/* ── Nav ── */
+nav {
+  position: sticky;
+  top: 0;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
+  padding: 0.75rem 0;
+}
+nav .container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+.logo span { color: var(--primary); }
+nav a.cta-sm {
+  padding: 0.4rem 1rem;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+nav a.cta-sm:hover { background: var(--primary-hover); }
+
+/* ── Hero ── */
+.hero {
+  text-align: center;
+  padding: 5rem 0 4rem;
+}
+.hero h1 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  margin-bottom: 1rem;
+}
+.hero h1 em {
+  font-style: normal;
+  color: var(--primary);
+}
+.hero p {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  max-width: 520px;
+  margin: 0 auto 2rem;
+}
+.cta-group {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.btn {
+  display: inline-block;
+  padding: 0.75rem 1.75rem;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, transform 0.1s;
+  cursor: pointer;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-outline {
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+}
+.btn-outline:hover { background: var(--primary-light); }
+
+/* ── Demo mockup ── */
+.demo {
+  max-width: 340px;
+  margin: 3rem auto 0;
+  background: var(--card);
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.demo-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.demo-dot {
+  width: 8px; height: 8px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+}
+.demo-msgs {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.msg {
+  padding: 0.6rem 0.85rem;
+  border-radius: 14px;
+  font-size: 0.85rem;
+  max-width: 80%;
+  line-height: 1.4;
+}
+.msg-in {
+  background: #f3f4f6;
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.msg-out {
+  background: var(--primary);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+/* ── Features ── */
+.features {
+  padding: 4rem 0;
+}
+.features h2 {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.features .subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+.feature-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+}
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--primary-light);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.feature-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── How it works ── */
+.how {
+  padding: 4rem 0;
+  border-top: 1px solid var(--border);
+}
+.how h2 {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 2.5rem;
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+  text-align: center;
+}
+.step-num {
+  width: 36px;
+  height: 36px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 0.75rem;
+}
+.steps h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+.steps p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* ── Pricing ── */
+.pricing {
+  padding: 4rem 0;
+  border-top: 1px solid var(--border);
+}
+.pricing h2 {
+  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.pricing .subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 2.5rem;
+}
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  max-width: 680px;
+  margin: 0 auto;
+}
+.price-card {
+  background: var(--card);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  position: relative;
+}
+.price-card.featured {
+  border-color: var(--primary);
+}
+.price-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.2rem 0.75rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.price-card h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+.price {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 0.25rem;
+}
+.price span {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.price-desc {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+.price-features {
+  list-style: none;
+  text-align: left;
+  margin-bottom: 1.5rem;
+}
+.price-features li {
+  padding: 0.3rem 0;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.price-features li::before {
+  content: "\2713";
+  color: var(--primary);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Footer ── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 2rem 0;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+footer a {
+  color: var(--primary);
+  text-decoration: none;
+}
+footer a:hover { text-decoration: underline; }
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .hero { padding: 3rem 0 2.5rem; }
+  .hero h1 { font-size: 1.85rem; }
+  .hero p { font-size: 1rem; }
+  .features h2, .how h2, .pricing h2 { font-size: 1.4rem; }
+  .price { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <a href="#" class="logo"><span>Booking</span>Agent</a>
+    <a href="#pricing" class="cta-sm">Get Started</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1>Your clients text.<br><em>AI books.</em></h1>
+    <p>An AI-powered SMS scheduling assistant for freelancers. Your customers book appointments by texting your number — no app downloads, no friction.</p>
+    <div class="cta-group">
+      <a href="#pricing" class="btn btn-primary">Get Started</a>
+      <a href="#how" class="btn btn-outline">How It Works</a>
+    </div>
+
+    <!-- SMS demo mockup -->
+    <div class="demo">
+      <div class="demo-header">
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        Messages
+      </div>
+      <div class="demo-msgs">
+        <div class="msg msg-in">Hey, I need a haircut this Friday afternoon</div>
+        <div class="msg msg-out">I have Friday at 2:00 PM or 4:30 PM available. Which works for you?</div>
+        <div class="msg msg-in">2pm works!</div>
+        <div class="msg msg-out">You're booked for Friday at 2:00 PM. I'll send a calendar invite shortly.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="container">
+    <h2>Everything you need to stop playing phone tag</h2>
+    <p class="subtitle">Booking Agent handles scheduling so you can focus on your work.</p>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">💬</div>
+        <h3>Natural Language SMS</h3>
+        <p>Customers text in plain English. The AI understands context, handles back-and-forth, and confirms bookings — no rigid menus.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI-Powered Scheduling</h3>
+        <p>Powered by local or cloud AI. Extracts dates, times, and services from freeform text. Always confirms before booking.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Calendar Invites</h3>
+        <p>Sends .ics calendar invites via SMS. Customers get it on their phone, you get a subscribable iCal feed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📱</div>
+        <h3>Mobile Admin Dashboard</h3>
+        <p>Manage bookings, view conversations, and configure settings from a mobile-first web app. Works offline as a PWA.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🛡️</div>
+        <h3>Spam Protection</h3>
+        <p>Built-in rate limiting, auto-blocking, and monthly budget controls. You stay in control of costs.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔧</div>
+        <h3>Your Twilio, Your Number</h3>
+        <p>Bring your own Twilio account. One phone number for SMS, voice, and future WhatsApp — you own the relationship.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="how" id="how">
+  <div class="container">
+    <h2>Up and running in minutes</h2>
+    <div class="steps">
+      <div>
+        <div class="step-num">1</div>
+        <h3>Get a Twilio Number</h3>
+        <p>Create a Twilio account and buy a phone number for about $1/month.</p>
+      </div>
+      <div>
+        <div class="step-num">2</div>
+        <h3>Connect to Booking Agent</h3>
+        <p>Paste your Twilio credentials into the admin dashboard. Set your availability and services.</p>
+      </div>
+      <div>
+        <div class="step-num">3</div>
+        <h3>Share Your Number</h3>
+        <p>Give clients your number. They text to book — the AI handles the rest.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <h2>Simple, honest pricing</h2>
+    <p class="subtitle">No per-booking fees. No message surcharges. You only pay Twilio directly for SMS.</p>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <h3>Self-Hosted</h3>
+        <div class="price">$39 <span>one-time</span></div>
+        <p class="price-desc">Run it on your own server</p>
+        <ul class="price-features">
+          <li>Full source code access</li>
+          <li>Deploy anywhere (VPS, Raspberry Pi, etc.)</li>
+          <li>Unlimited bookings</li>
+          <li>All features included</li>
+          <li>Community support</li>
+        </ul>
+        <a href="#app" class="btn btn-outline" style="width:100%">Buy Once</a>
+      </div>
+      <div class="price-card featured">
+        <div class="price-badge">Recommended</div>
+        <h3>Cloud-Hosted</h3>
+        <div class="price">$7 <span>/month</span></div>
+        <p class="price-desc">We run the server for you</p>
+        <ul class="price-features">
+          <li>Zero setup — start in minutes</li>
+          <li>Automatic updates</li>
+          <li>Unlimited bookings</li>
+          <li>All features included</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#app" class="btn btn-primary" style="width:100%">Start Free Trial</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>&copy; 2026 Booking Agent. Built for freelancers who'd rather work than manage a calendar.</p>
+  </div>
+</footer>
+
+</body>
+</html>
