@@ -678,41 +678,6 @@ body {
       <!-- Pause/Resume -->
       <button class="pause-btn resume" id="pause-btn" onclick="togglePause()">Loading...</button>
 
-      <!-- Monthly Activity -->
-      <div class="settings-section">
-        <h3>Monthly Activity</h3>
-        <table class="activity-table" id="activity-table">
-          <thead><tr><th></th></tr></thead>
-          <tbody>
-            <tr><td class="activity-label">SMS Received</td></tr>
-            <tr><td class="activity-label">SMS Sent</td></tr>
-            <tr><td class="activity-label">Bookings</td></tr>
-            <tr><td class="activity-label">Cancellations</td></tr>
-            <tr><td class="activity-label">Reschedules</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Calendar Feed -->
-      <div class="settings-section">
-        <h3>Calendar Feed</h3>
-        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem">Subscribe to this URL in your phone's calendar app to see all bookings automatically.</p>
-        <div class="feed-url-row">
-          <input type="text" id="feed-url" readonly>
-          <button onclick="copyFeedUrl()">Copy</button>
-        </div>
-      </div>
-
-      <!-- Blocked Numbers -->
-      <div class="settings-section">
-        <h3>Blocked Numbers</h3>
-        <div class="blocked-add">
-          <input type="tel" id="block-phone-input" placeholder="+1234567890">
-          <button onclick="doBlock()">Block</button>
-        </div>
-        <div id="blocked-list"></div>
-      </div>
-
       <!-- Business Settings -->
       <div class="settings-section">
         <h3>Business Settings</h3>
@@ -808,6 +773,41 @@ body {
         </div>
 
         <button class="save-btn" onclick="saveAiPreferences()">Save AI Personality</button>
+      </div>
+
+      <!-- Calendar Feed -->
+      <div class="settings-section">
+        <h3>Calendar Feed</h3>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem">Subscribe to this URL in your phone's calendar app to see all bookings automatically.</p>
+        <div class="feed-url-row">
+          <input type="text" id="feed-url" readonly>
+          <button onclick="copyFeedUrl()">Copy</button>
+        </div>
+      </div>
+
+      <!-- Blocked Numbers -->
+      <div class="settings-section">
+        <h3>Blocked Numbers</h3>
+        <div class="blocked-add">
+          <input type="tel" id="block-phone-input" placeholder="+1234567890">
+          <button onclick="doBlock()">Block</button>
+        </div>
+        <div id="blocked-list"></div>
+      </div>
+
+      <!-- Monthly Activity -->
+      <div class="settings-section">
+        <h3>Monthly Activity</h3>
+        <table class="activity-table" id="activity-table">
+          <thead><tr><th></th></tr></thead>
+          <tbody>
+            <tr><td class="activity-label">SMS Received</td></tr>
+            <tr><td class="activity-label">SMS Sent</td></tr>
+            <tr><td class="activity-label">Bookings</td></tr>
+            <tr><td class="activity-label">Cancellations</td></tr>
+            <tr><td class="activity-label">Reschedules</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
