@@ -1546,9 +1546,59 @@ function formatTime(dateStr) {
 }
 
 /* ═══════════════════════════════════════════
+   Demo mode (GitHub Pages preview)
+   ═══════════════════════════════════════════ */
+const isDemo = location.hostname.endsWith('github.io') || location.search.includes('demo');
+
+function loadDemo() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  isPaused = false;
+
+  // Mock threads
+  threads = [
+    { phone_number: '+1 (555) 234-5678', last_message: 'Hey, I need a haircut this Friday afternoon', last_message_at: new Date().toISOString().slice(0, -1), unread_count: 1, direction: 'inbound' },
+    { phone_number: '+1 (555) 876-5432', last_message: "You're booked for Saturday at 10:00 AM!", last_message_at: new Date(Date.now() - 3600000).toISOString().slice(0, -1), unread_count: 0, direction: 'outbound' },
+    { phone_number: '+1 (555) 111-2222', last_message: 'Can I reschedule my appointment to next week?', last_message_at: new Date(Date.now() - 7200000).toISOString().slice(0, -1), unread_count: 2, direction: 'inbound' },
+  ];
+  renderThreads();
+  updateInboxBadge();
+
+  // Mock status
+  document.getElementById('agent-status').textContent = 'Active';
+  document.getElementById('agent-status').className = 'status-pill active';
+  document.getElementById('biz-name').value = 'Fresh Cuts Barbershop';
+  document.getElementById('owner-phone').value = '+1 (555) 000-1234';
+  document.getElementById('tz-select').value = 'America/New_York';
+
+  // Stub out API calls for demo
+  window._realApiFetch = apiFetch;
+  apiFetch = async (path) => {
+    if (path.includes('/bookings')) return [
+      { id: 1, customer_phone: '+1 (555) 234-5678', service: 'Haircut', start_time: '2026-02-20T14:00:00', status: 'confirmed' },
+      { id: 2, customer_phone: '+1 (555) 876-5432', service: 'Beard Trim', start_time: '2026-02-21T10:00:00', status: 'confirmed' },
+      { id: 3, customer_phone: '+1 (555) 111-2222', service: 'Haircut + Color', start_time: '2026-02-18T09:00:00', status: 'pending' },
+    ];
+    if (path.includes('/contacts')) return [
+      { phone_number: '+1 (555) 234-5678', first_seen: '2026-01-15T12:00:00', total_bookings: 3, source: 'sms' },
+      { phone_number: '+1 (555) 876-5432', first_seen: '2026-02-01T09:00:00', total_bookings: 1, source: 'sms' },
+    ];
+    if (path.includes('/activity')) return { months: [
+      { month: '2026-01', messages_sent: 45, messages_received: 52, bookings_created: 8 },
+      { month: '2026-02', messages_sent: 32, messages_received: 38, bookings_created: 5 },
+    ]};
+    if (path.includes('/blocked')) return [];
+    if (path.includes('/status')) return { paused: false };
+    if (path.includes('/settings')) return {};
+    return {};
+  };
+}
+
+/* ═══════════════════════════════════════════
    Init
    ═══════════════════════════════════════════ */
-if (TOKEN) verifyToken();
+if (isDemo) loadDemo();
+else if (TOKEN) verifyToken();
 
 /* ── PWA Service Worker ── */
 if ('serviceWorker' in navigator) {
