@@ -9,6 +9,12 @@ pub struct TimeSlot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BreakSlot {
+    pub start: String,
+    pub end: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DayOverride {
     pub available: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -22,7 +28,21 @@ pub struct Availability {
     pub slots: Vec<TimeSlot>,
     #[serde(default)]
     pub overrides: HashMap<String, DayOverride>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub day_from: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub day_to: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_from: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_to: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub block_size: Option<u32>,
+    #[serde(default)]
+    pub breaks: Vec<BreakSlot>,
 }
+
+const DAY_ORDER: [&str; 7] = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 impl Availability {
     pub fn from_json(s: &str) -> anyhow::Result<Self> {
@@ -43,7 +63,74 @@ impl Availability {
                 parse_time(end)?;
             }
         }
+        if let Some(ref d) = availability.day_from {
+            parse_weekday(d)?;
+        }
+        if let Some(ref d) = availability.day_to {
+            parse_weekday(d)?;
+        }
+        if let Some(ref t) = availability.time_from {
+            parse_time(t)?;
+        }
+        if let Some(ref t) = availability.time_to {
+            parse_time(t)?;
+        }
+        for brk in &availability.breaks {
+            parse_time(&brk.start)?;
+            parse_time(&brk.end)?;
+        }
         Ok(availability)
+    }
+
+    /// Returns effective slots — generated from day/time range if new fields are present,
+    /// otherwise falls back to legacy `slots`.
+    pub fn effective_slots(&self) -> Vec<TimeSlot> {
+        if let (Some(ref day_from), Some(ref day_to), Some(ref time_from), Some(ref time_to)) =
+            (&self.day_from, &self.day_to, &self.time_from, &self.time_to)
+        {
+            let from_idx = day_index(day_from);
+            let to_idx = day_index(day_to);
+            if let (Some(fi), Some(ti)) = (from_idx, to_idx) {
+                let mut days = Vec::new();
+                if fi <= ti {
+                    // Normal range: mon..fri
+                    for day in &DAY_ORDER[fi..=ti] {
+                        days.push((*day).to_string());
+                    }
+                } else {
+                    // Wrap-around: fri..mon
+                    for day in &DAY_ORDER[fi..] {
+                        days.push((*day).to_string());
+                    }
+                    for day in &DAY_ORDER[..=ti] {
+                        days.push((*day).to_string());
+                    }
+                }
+                return days
+                    .into_iter()
+                    .map(|day| TimeSlot {
+                        day,
+                        start: time_from.clone(),
+                        end: time_to.clone(),
+                    })
+                    .collect();
+            }
+        }
+        self.slots.clone()
+    }
+
+    /// Check if a given HH:MM time falls within any break.
+    pub fn is_during_break(&self, time: &str) -> bool {
+        self.breaks
+            .iter()
+            .any(|b| time >= b.start.as_str() && time < b.end.as_str())
+    }
+
+    /// Check if a time range [start, end) overlaps any break.
+    pub fn overlaps_break(&self, start: &str, end: &str) -> bool {
+        self.breaks
+            .iter()
+            .any(|b| start < b.end.as_str() && end > b.start.as_str())
     }
 
     pub fn is_available(&self, dt: &chrono::NaiveDateTime) -> bool {
@@ -55,16 +142,19 @@ impl Availability {
             }
             if let (Some(ref start), Some(ref end)) = (&ovr.start, &ovr.end) {
                 let time = dt.format("%H:%M").to_string();
-                return time >= *start && time < *end;
+                return time >= *start && time < *end && !self.is_during_break(&time);
             }
         }
 
         let weekday = dt.format("%a").to_string().to_lowercase();
         let time = dt.format("%H:%M").to_string();
 
-        self.slots.iter().any(|slot| {
+        let slots = self.effective_slots();
+        let in_slot = slots.iter().any(|slot| {
             slot.day.to_lowercase() == weekday && time >= slot.start && time < slot.end
-        })
+        });
+
+        in_slot && !self.is_during_break(&time)
     }
 
     pub fn end_time_within_slot(&self, dt: &chrono::NaiveDateTime, duration_minutes: i32) -> bool {
@@ -78,7 +168,9 @@ impl Availability {
             if let (Some(ref start), Some(ref end)) = (&ovr.start, &ovr.end) {
                 let start_time = dt.format("%H:%M").to_string();
                 let end_time = end_dt.format("%H:%M").to_string();
-                return start_time >= *start && end_time <= *end;
+                return start_time >= *start
+                    && end_time <= *end
+                    && !self.overlaps_break(&start_time, &end_time);
             }
         }
 
@@ -86,27 +178,29 @@ impl Availability {
         let start_time = dt.format("%H:%M").to_string();
         let end_time = end_dt.format("%H:%M").to_string();
 
-        self.slots.iter().any(|slot| {
+        let slots = self.effective_slots();
+        let in_slot = slots.iter().any(|slot| {
             slot.day.to_lowercase() == weekday
                 && start_time >= slot.start
                 && end_time <= slot.end
-        })
+        });
+
+        in_slot && !self.overlaps_break(&start_time, &end_time)
     }
 
     pub fn to_human_readable(&self) -> String {
-        if self.slots.is_empty() {
+        let slots = self.effective_slots();
+        if slots.is_empty() {
             return String::new();
         }
 
-        let day_order = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-
-        let mut sorted_slots = self.slots.clone();
+        let mut sorted_slots = slots;
         sorted_slots.sort_by(|a, b| {
-            let a_idx = day_order
+            let a_idx = DAY_ORDER
                 .iter()
                 .position(|d| *d == a.day.to_lowercase())
                 .unwrap_or(7);
-            let b_idx = day_order
+            let b_idx = DAY_ORDER
                 .iter()
                 .position(|d| *d == b.day.to_lowercase())
                 .unwrap_or(7);
@@ -122,6 +216,12 @@ impl Availability {
             .collect::<Vec<_>>()
             .join(", ")
     }
+}
+
+fn day_index(day: &str) -> Option<usize> {
+    DAY_ORDER
+        .iter()
+        .position(|d| *d == day.to_lowercase())
 }
 
 fn capitalize(s: &str) -> String {
@@ -298,5 +398,134 @@ mod tests {
         // Override says available but no custom hours — should use default Mon slots
         assert!(avail.is_available(&dt("2025-06-16 10:00")));
         assert!(!avail.is_available(&dt("2025-06-16 08:00")));
+    }
+
+    // ── New-style fields tests ──
+
+    #[test]
+    fn test_new_style_effective_slots() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"fri","time_from":"09:00","time_to":"17:00"}"#;
+        let avail = Availability::from_json(json).unwrap();
+        let slots = avail.effective_slots();
+        assert_eq!(slots.len(), 5);
+        assert_eq!(slots[0].day, "mon");
+        assert_eq!(slots[4].day, "fri");
+        assert_eq!(slots[0].start, "09:00");
+        assert_eq!(slots[0].end, "17:00");
+    }
+
+    #[test]
+    fn test_new_style_is_available() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"fri","time_from":"09:00","time_to":"17:00"}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // Monday 10:00 — available
+        assert!(avail.is_available(&dt("2025-06-16 10:00")));
+        // Saturday — not available
+        assert!(!avail.is_available(&dt("2025-06-21 10:00")));
+        // Monday 18:00 — outside hours
+        assert!(!avail.is_available(&dt("2025-06-16 18:00")));
+    }
+
+    #[test]
+    fn test_new_style_human_readable() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"wed","time_from":"10:00","time_to":"16:00"}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert_eq!(
+            avail.to_human_readable(),
+            "Mon: 10:00-16:00, Tue: 10:00-16:00, Wed: 10:00-16:00"
+        );
+    }
+
+    #[test]
+    fn test_wrap_around_day_range() {
+        let json = r#"{"slots":[],"day_from":"fri","day_to":"mon","time_from":"09:00","time_to":"17:00"}"#;
+        let avail = Availability::from_json(json).unwrap();
+        let slots = avail.effective_slots();
+        assert_eq!(slots.len(), 4); // fri, sat, sun, mon
+        assert_eq!(slots[0].day, "fri");
+        assert_eq!(slots[1].day, "sat");
+        assert_eq!(slots[2].day, "sun");
+        assert_eq!(slots[3].day, "mon");
+    }
+
+    #[test]
+    fn test_breaks_during_availability() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"fri","time_from":"09:00","time_to":"17:00","breaks":[{"start":"12:00","end":"13:00"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // Monday 12:30 — during break
+        assert!(!avail.is_available(&dt("2025-06-16 12:30")));
+        // Monday 11:00 — before break
+        assert!(avail.is_available(&dt("2025-06-16 11:00")));
+        // Monday 13:00 — after break
+        assert!(avail.is_available(&dt("2025-06-16 13:00")));
+    }
+
+    #[test]
+    fn test_break_overlaps_booking() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"fri","time_from":"09:00","time_to":"17:00","breaks":[{"start":"12:00","end":"13:00"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // 11:30 + 60min = 12:30 — overlaps break
+        assert!(!avail.end_time_within_slot(&dt("2025-06-16 11:30"), 60));
+        // 10:00 + 60min = 11:00 — doesn't overlap break
+        assert!(avail.end_time_within_slot(&dt("2025-06-16 10:00"), 60));
+        // 13:00 + 60min = 14:00 — doesn't overlap break
+        assert!(avail.end_time_within_slot(&dt("2025-06-16 13:00"), 60));
+    }
+
+    #[test]
+    fn test_breaks_with_override_custom_hours() {
+        let json = r#"{"slots":[],"day_from":"mon","day_to":"fri","time_from":"09:00","time_to":"17:00","breaks":[{"start":"12:00","end":"13:00"}],"overrides":{"2025-06-16":{"available":true,"start":"10:00","end":"15:00"}}}"#;
+        let avail = Availability::from_json(json).unwrap();
+        // Override custom hours, but break still applies
+        assert!(!avail.is_available(&dt("2025-06-16 12:30")));
+        assert!(avail.is_available(&dt("2025-06-16 10:30")));
+    }
+
+    #[test]
+    fn test_backward_compat_new_fields_missing() {
+        // Old-style JSON without any new fields — should still work
+        let json = r#"{"slots":[{"day":"mon","start":"09:00","end":"17:00"},{"day":"wed","start":"10:00","end":"14:00"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        let slots = avail.effective_slots();
+        assert_eq!(slots.len(), 2);
+        assert!(avail.is_available(&dt("2025-06-16 10:00")));
+        assert!(!avail.is_available(&dt("2025-06-17 10:00"))); // Tuesday
+        assert!(avail.is_available(&dt("2025-06-18 10:00"))); // Wednesday
+    }
+
+    #[test]
+    fn test_is_during_break() {
+        let json = r#"{"slots":[],"breaks":[{"start":"12:00","end":"13:00"},{"start":"15:00","end":"15:30"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert!(avail.is_during_break("12:00"));
+        assert!(avail.is_during_break("12:30"));
+        assert!(!avail.is_during_break("13:00"));
+        assert!(avail.is_during_break("15:15"));
+        assert!(!avail.is_during_break("15:30"));
+    }
+
+    #[test]
+    fn test_overlaps_break() {
+        let json = r#"{"slots":[],"breaks":[{"start":"12:00","end":"13:00"}]}"#;
+        let avail = Availability::from_json(json).unwrap();
+        assert!(avail.overlaps_break("11:30", "12:30"));
+        assert!(avail.overlaps_break("12:30", "13:30"));
+        assert!(!avail.overlaps_break("10:00", "12:00"));
+        assert!(!avail.overlaps_break("13:00", "14:00"));
+    }
+
+    #[test]
+    fn test_validate_new_fields() {
+        // Invalid day_from
+        let json = r#"{"slots":[],"day_from":"xyz"}"#;
+        assert!(Availability::from_json(json).is_err());
+
+        // Invalid time_from
+        let json = r#"{"slots":[],"time_from":"25:00"}"#;
+        assert!(Availability::from_json(json).is_err());
+
+        // Invalid break time
+        let json = r#"{"slots":[],"breaks":[{"start":"12:00","end":"99:00"}]}"#;
+        assert!(Availability::from_json(json).is_err());
     }
 }

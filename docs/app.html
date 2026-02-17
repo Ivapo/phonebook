@@ -503,19 +503,6 @@ body {
 .form-group input:disabled { background: #f3f4f6; color: var(--text-muted); }
 
 /* Availability slots */
-.slot-row {
-  display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem;
-}
-.slot-row select, .slot-row input[type="time"] {
-  padding: 0.35rem 0.4rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-}
-.slot-remove {
-  background: none; border: none; color: var(--danger);
-  font-size: 1rem; cursor: pointer; padding: 0 0.3rem;
-}
 .add-slot-btn {
   background: none; border: 1px solid var(--primary); color: var(--primary);
   padding: 0.3rem 0.75rem; border-radius: var(--radius-sm);
@@ -758,32 +745,39 @@ body {
 .cal-day-actions button:hover { background: var(--bg); }
 .cal-day-actions button.danger { border-color: var(--danger); color: var(--danger); }
 .cal-day-actions button.danger:hover { background: var(--danger); color: #fff; }
-.cal-default-schedule {
-  background: var(--card);
+.break-row {
+  display: flex; gap: 0.4rem; align-items: center; margin-bottom: 0.4rem;
+}
+.break-row input[type="time"] {
+  padding: 0.35rem 0.4rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
 }
-.cal-schedule-toggle {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: none;
-  border: none;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text);
+.break-row .break-label {
+  font-size: 0.82rem; color: var(--text-muted);
 }
-.cal-schedule-toggle span:last-child {
-  font-size: 0.7rem;
-  transition: transform 0.2s;
-  color: var(--text-muted);
+.break-remove {
+  background: none; border: none; color: var(--danger);
+  font-size: 1rem; cursor: pointer; padding: 0 0.3rem;
 }
-.cal-schedule-toggle.open span:last-child { transform: rotate(90deg); }
-.cal-schedule-body { padding: 0 1rem 1rem; }
+.cal-settings-row {
+  display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap;
+}
+.cal-settings-row label {
+  font-size: 0.82rem; font-weight: 500; min-width: 100px;
+}
+.cal-settings-row select, .cal-settings-row input[type="time"] {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem; font-family: inherit;
+}
+.cal-settings-row .to-label {
+  font-size: 0.82rem; color: var(--text-muted);
+}
+.breaks-section { margin-bottom: 0.75rem; }
+.breaks-section-label { font-size: 0.82rem; font-weight: 500; margin-bottom: 0.35rem; }
 .bookings-list-header {
   display: flex;
   justify-content: space-between;
@@ -904,19 +898,6 @@ body {
         </div>
         <div id="cal-day-detail-hours"></div>
         <div id="cal-day-detail-actions"></div>
-      </div>
-
-      <!-- Default Weekly Hours -->
-      <div class="cal-default-schedule">
-        <button class="cal-schedule-toggle" onclick="toggleDefaultSchedule()">
-          <span>Default Weekly Hours</span>
-          <span id="cal-schedule-arrow">&#9654;</span>
-        </button>
-        <div class="cal-schedule-body" id="cal-schedule-body" style="display:none">
-          <div id="cal-availability-slots"></div>
-          <button type="button" class="add-slot-btn" onclick="addCalSlot()">+ Add Slot</button>
-          <button class="save-btn" onclick="saveAvailability()">Save Schedule</button>
-        </div>
       </div>
 
       <!-- Bookings List -->
@@ -1040,13 +1021,47 @@ body {
         <button class="save-btn" onclick="saveAiPreferences()">Save AI Personality</button>
       </div>
 
-      <!-- Calendar Feed -->
+      <!-- Calendar Settings -->
       <div class="settings-section">
-        <h3>Calendar Feed</h3>
-        <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.5rem">Subscribe to this URL in your phone's calendar app to see all bookings automatically.</p>
-        <div class="feed-url-row">
-          <input type="text" id="feed-url" readonly>
-          <button onclick="copyFeedUrl()">Copy</button>
+        <h3>Calendar Settings</h3>
+        <div class="cal-settings-row">
+          <label>Working Days</label>
+          <select id="cs-day-from">
+            <option value="mon">Mon</option><option value="tue">Tue</option><option value="wed">Wed</option>
+            <option value="thu">Thu</option><option value="fri">Fri</option><option value="sat">Sat</option><option value="sun">Sun</option>
+          </select>
+          <span class="to-label">to</span>
+          <select id="cs-day-to">
+            <option value="mon">Mon</option><option value="tue">Tue</option><option value="wed">Wed</option>
+            <option value="thu">Thu</option><option value="fri">Fri</option><option value="sat">Sat</option><option value="sun">Sun</option>
+          </select>
+        </div>
+        <div class="cal-settings-row">
+          <label>Working Hours</label>
+          <input type="time" id="cs-time-from" value="09:00">
+          <span class="to-label">to</span>
+          <input type="time" id="cs-time-to" value="17:00">
+        </div>
+        <div class="cal-settings-row">
+          <label>Time Block Size</label>
+          <select id="cs-block-size">
+            <option value="15">15 min</option><option value="30" selected>30 min</option>
+            <option value="45">45 min</option><option value="60">60 min</option>
+          </select>
+        </div>
+        <div class="breaks-section">
+          <div class="breaks-section-label">Breaks</div>
+          <div id="cs-breaks-list"></div>
+          <button type="button" class="add-slot-btn" onclick="addBreakRow()">+ Add Break</button>
+        </div>
+        <button class="save-btn" onclick="saveCalendarSettings()">Save Calendar Settings</button>
+        <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border)">
+          <p style="font-size:0.78rem;font-weight:500;margin-bottom:0.3rem">Calendar Feed URL</p>
+          <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.4rem">Subscribe in your calendar app to see bookings.</p>
+          <div class="feed-url-row">
+            <input type="text" id="feed-url" readonly>
+            <button onclick="copyFeedUrl()">Copy</button>
+          </div>
         </div>
       </div>
 
@@ -1130,6 +1145,7 @@ let selectedDate = null;
 let allBookings = [];
 let availabilitySlots = [];
 let availabilityOverrides = {};
+let calSettings = { day_from: 'mon', day_to: 'fri', time_from: '09:00', time_to: '17:00', block_size: 30, breaks: [] };
 
 /* ═══════════════════════════════════════════
    Token migration + init
@@ -1228,7 +1244,7 @@ function switchTab(tab) {
   if (tab === 'inbox') updateInboxBadge();
   if (tab === 'bookings') { loadBookings(); loadAvailability(); }
   if (tab === 'contacts') loadContacts();
-  if (tab === 'settings') { loadStatus(); loadActivity(); updateFeedUrl(); loadBlocked(); loadSettings(); }
+  if (tab === 'settings') { loadStatus(); loadActivity(); updateFeedUrl(); loadBlocked(); loadSettings(); loadAvailability(); }
 }
 
 /* ═══════════════════════════════════════════
@@ -1555,6 +1571,38 @@ function buildDayCell(dateStr, dayNum, otherMonth, todayStr) {
   </div>`;
 }
 
+function getEffectiveSlots() {
+  if (calSettings.day_from && calSettings.day_to && calSettings.time_from && calSettings.time_to) {
+    return generateSlotsFromRange(calSettings);
+  }
+  return availabilitySlots;
+}
+
+function generateSlotsFromRange(cs) {
+  const fi = DAYS.indexOf(cs.day_from);
+  const ti = DAYS.indexOf(cs.day_to);
+  if (fi < 0 || ti < 0) return [];
+  const days = [];
+  if (fi <= ti) {
+    for (let i = fi; i <= ti; i++) days.push(DAYS[i]);
+  } else {
+    for (let i = fi; i < 7; i++) days.push(DAYS[i]);
+    for (let i = 0; i <= ti; i++) days.push(DAYS[i]);
+  }
+  return days.map(day => ({ day, start: cs.time_from, end: cs.time_to }));
+}
+
+function inferCalSettingsFromSlots(slots) {
+  if (!slots || !slots.length) return;
+  const daySet = [...new Set(slots.map(s => s.day.toLowerCase()))];
+  const ordered = DAYS.filter(d => daySet.includes(d));
+  if (!ordered.length) return;
+  calSettings.day_from = ordered[0];
+  calSettings.day_to = ordered[ordered.length - 1];
+  calSettings.time_from = slots[0].start || '09:00';
+  calSettings.time_to = slots[0].end || '17:00';
+}
+
 function getDayAvailability(dateStr) {
   if (availabilityOverrides[dateStr]) {
     const ovr = availabilityOverrides[dateStr];
@@ -1564,7 +1612,7 @@ function getDayAvailability(dateStr) {
   const d = new Date(dateStr + 'T12:00:00');
   const dayNames = ['sun','mon','tue','wed','thu','fri','sat'];
   const weekday = dayNames[d.getDay()];
-  const slots = availabilitySlots.filter(s => s.day.toLowerCase() === weekday);
+  const slots = getEffectiveSlots().filter(s => s.day.toLowerCase() === weekday);
   if (slots.length > 0) return { type: 'available', start: slots[0].start, end: slots[0].end };
   return { type: 'off', start: null, end: null };
 }
@@ -1612,8 +1660,9 @@ function renderWeek() {
   const fmt = d => d.toLocaleDateString([], { month: 'short', day: 'numeric' });
   document.getElementById('cal-week-label').textContent = `${fmt(startD)} \u2013 ${fmt(endD)}, ${endD.getFullYear()}`;
   let minHour = 8, maxHour = 18;
-  if (availabilitySlots.length) {
-    const hours = availabilitySlots.flatMap(s => [parseInt(s.start.split(':')[0]), parseInt(s.end.split(':')[0])]);
+  const effSlots = getEffectiveSlots();
+  if (effSlots.length) {
+    const hours = effSlots.flatMap(s => [parseInt(s.start.split(':')[0]), parseInt(s.end.split(':')[0])]);
     minHour = Math.min(minHour, ...hours);
     maxHour = Math.max(maxHour, ...hours);
   }
@@ -1719,56 +1768,61 @@ function removeOverride(dateStr) {
   showDayDetail(dateStr);
 }
 
-/* ── Default Weekly Schedule ── */
-function toggleDefaultSchedule() {
-  const body = document.getElementById('cal-schedule-body');
-  const toggle = document.querySelector('.cal-schedule-toggle');
-  const open = body.style.display === 'none';
-  body.style.display = open ? '' : 'none';
-  toggle.classList.toggle('open', open);
+/* ── Calendar Settings (in Settings tab) ── */
+function populateCalendarSettingsForm() {
+  document.getElementById('cs-day-from').value = calSettings.day_from || 'mon';
+  document.getElementById('cs-day-to').value = calSettings.day_to || 'fri';
+  document.getElementById('cs-time-from').value = calSettings.time_from || '09:00';
+  document.getElementById('cs-time-to').value = calSettings.time_to || '17:00';
+  document.getElementById('cs-block-size').value = calSettings.block_size || 30;
+  loadBreakRows(calSettings.breaks || []);
 }
 
-function addCalSlot(day, start, end) {
-  day = day || 'mon'; start = start || '09:00'; end = end || '17:00';
-  const container = document.getElementById('cal-availability-slots');
+function addBreakRow(start, end) {
+  start = start || '12:00'; end = end || '13:00';
+  const container = document.getElementById('cs-breaks-list');
   const row = document.createElement('div');
-  row.className = 'slot-row';
-  const sel = document.createElement('select');
-  sel.className = 'slot-day';
-  DAYS.forEach((d, i) => {
-    const opt = document.createElement('option');
-    opt.value = d; opt.textContent = DAY_LABELS[i];
-    if (d === day) opt.selected = true;
-    sel.appendChild(opt);
-  });
+  row.className = 'break-row';
   const startIn = document.createElement('input');
-  startIn.type = 'time'; startIn.className = 'slot-start'; startIn.value = start;
+  startIn.type = 'time'; startIn.className = 'break-start'; startIn.value = start;
+  const lbl = document.createElement('span');
+  lbl.className = 'break-label'; lbl.textContent = 'to';
   const endIn = document.createElement('input');
-  endIn.type = 'time'; endIn.className = 'slot-end'; endIn.value = end;
+  endIn.type = 'time'; endIn.className = 'break-end'; endIn.value = end;
   const rm = document.createElement('button');
-  rm.type = 'button'; rm.className = 'slot-remove'; rm.textContent = '\u00d7';
+  rm.type = 'button'; rm.className = 'break-remove'; rm.textContent = '\u00d7';
   rm.onclick = () => row.remove();
-  row.append(sel, startIn, endIn, rm);
+  row.append(startIn, lbl, endIn, rm);
   container.appendChild(row);
 }
 
-function collectCalSlots() {
-  const rows = document.getElementById('cal-availability-slots').children;
-  const slots = [];
-  for (const row of rows) {
-    const day = row.querySelector('.slot-day')?.value;
-    const start = row.querySelector('.slot-start')?.value;
-    const end = row.querySelector('.slot-end')?.value;
-    if (day && start && end) slots.push({ day, start, end });
-  }
-  return slots;
+function loadBreakRows(breaks) {
+  const container = document.getElementById('cs-breaks-list');
+  container.innerHTML = '';
+  if (!breaks || !Array.isArray(breaks)) return;
+  breaks.forEach(b => addBreakRow(b.start, b.end));
 }
 
-function loadCalSlots(slots) {
-  const container = document.getElementById('cal-availability-slots');
-  container.innerHTML = '';
-  if (!slots || !Array.isArray(slots)) return;
-  slots.forEach(s => addCalSlot(s.day, s.start, s.end));
+function collectBreaks() {
+  const rows = document.getElementById('cs-breaks-list').children;
+  const breaks = [];
+  for (const row of rows) {
+    const start = row.querySelector('.break-start')?.value;
+    const end = row.querySelector('.break-end')?.value;
+    if (start && end) breaks.push({ start, end });
+  }
+  return breaks;
+}
+
+async function saveCalendarSettings() {
+  calSettings.day_from = document.getElementById('cs-day-from').value;
+  calSettings.day_to = document.getElementById('cs-day-to').value;
+  calSettings.time_from = document.getElementById('cs-time-from').value;
+  calSettings.time_to = document.getElementById('cs-time-to').value;
+  calSettings.block_size = parseInt(document.getElementById('cs-block-size').value) || 30;
+  calSettings.breaks = collectBreaks();
+  availabilitySlots = generateSlotsFromRange(calSettings);
+  await saveAvailability();
 }
 
 /* ── Availability Load/Save ── */
@@ -1781,24 +1835,43 @@ async function loadAvailability() {
         const parsed = JSON.parse(raw);
         availabilitySlots = parsed.slots || [];
         availabilityOverrides = parsed.overrides || {};
+        if (parsed.day_from) {
+          calSettings.day_from = parsed.day_from;
+          calSettings.day_to = parsed.day_to || 'fri';
+          calSettings.time_from = parsed.time_from || '09:00';
+          calSettings.time_to = parsed.time_to || '17:00';
+          calSettings.block_size = parsed.block_size || 30;
+          calSettings.breaks = parsed.breaks || [];
+        } else if (availabilitySlots.length) {
+          inferCalSettingsFromSlots(availabilitySlots);
+        }
       } catch { availabilitySlots = []; availabilityOverrides = {}; }
     } else {
       availabilitySlots = [];
       availabilityOverrides = {};
     }
-    loadCalSlots(availabilitySlots);
+    populateCalendarSettingsForm();
     renderCalendar();
   } catch (e) { console.error('loadAvailability:', e); }
 }
 
 async function saveAvailability() {
   try {
-    const slots = collectCalSlots();
+    const slots = getEffectiveSlots();
     availabilitySlots = slots;
     await apiFetch('/api/admin/settings', {
       method: 'POST',
       body: JSON.stringify({
-        availability: JSON.stringify({ slots, overrides: availabilityOverrides })
+        availability: JSON.stringify({
+          slots,
+          overrides: availabilityOverrides,
+          day_from: calSettings.day_from,
+          day_to: calSettings.day_to,
+          time_from: calSettings.time_from,
+          time_to: calSettings.time_to,
+          block_size: calSettings.block_size,
+          breaks: calSettings.breaks
+        })
       })
     });
     toast('Schedule saved');
@@ -2183,7 +2256,13 @@ function loadDemo() {
           overrides: {
             '2026-02-19': { available: false },
             '2026-02-27': { available: true, start: '11:00', end: '15:00' },
-          }
+          },
+          day_from: 'mon',
+          day_to: 'fri',
+          time_from: '09:00',
+          time_to: '17:00',
+          block_size: 30,
+          breaks: [{ start: '12:00', end: '13:00' }]
         }),
         ai_preferences: '',
       };

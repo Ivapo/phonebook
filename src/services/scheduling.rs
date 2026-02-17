@@ -37,7 +37,7 @@ pub fn validate_booking_time(
 ) -> Result<(), SchedulingError> {
     // Check availability if configured
     if let Some(avail) = availability {
-        if !avail.slots.is_empty() {
+        if !avail.effective_slots().is_empty() {
             if !avail.is_available(dt) {
                 return Err(SchedulingError::OutsideBusinessHours {
                     hours: avail.to_human_readable(),
