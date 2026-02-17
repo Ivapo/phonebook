@@ -871,12 +871,12 @@ body {
     <div class="tab-panel" id="bookings-panel">
       <!-- View Toggle -->
       <div class="cal-toggle">
-        <button class="cal-toggle-btn active" data-view="month" onclick="switchCalView('month')">Month</button>
-        <button class="cal-toggle-btn" data-view="week" onclick="switchCalView('week')">Week</button>
+        <button class="cal-toggle-btn active" data-view="week" onclick="switchCalView('week')">Week</button>
+        <button class="cal-toggle-btn" data-view="month" onclick="switchCalView('month')">Month</button>
       </div>
 
       <!-- Month View -->
-      <div id="cal-month">
+      <div id="cal-month" style="display:none">
         <div class="cal-nav">
           <button onclick="calMonthPrev()">&#8249;</button>
           <span id="cal-month-label"></span>
@@ -887,7 +887,7 @@ body {
       </div>
 
       <!-- Week View -->
-      <div id="cal-week" style="display:none">
+      <div id="cal-week">
         <div class="cal-nav">
           <button onclick="calWeekPrev()">&#8249;</button>
           <span id="cal-week-label"></span>
@@ -1114,7 +1114,7 @@ let eventSource = null;
 let isPaused = false;
 
 /* Calendar state */
-let calView = 'month';
+let calView = 'week';
 let calendarYear = new Date().getFullYear();
 let calendarMonth = new Date().getMonth();
 let weekStart = (function() {
